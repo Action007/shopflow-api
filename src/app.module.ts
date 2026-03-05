@@ -3,9 +3,11 @@ import { PrismaModule } from './prisma/prisma.module';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { HttpExceptionFilter } from './common/filters/httc-exception.filter';
 import { TransformResponseInterceptor } from './common/interceptors/transform-response.interceptor';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { UserModule } from './user/user.module';
 
 @Module({
-    imports: [PrismaModule],
+    imports: [PrismaModule, UserModule],
     controllers: [],
     providers: [
         {
@@ -15,6 +17,10 @@ import { TransformResponseInterceptor } from './common/interceptors/transform-re
         {
             provide: APP_INTERCEPTOR,
             useClass: TransformResponseInterceptor,
+        },
+        {
+            provide: APP_INTERCEPTOR,
+            useClass: LoggingInterceptor,
         },
     ],
 })

@@ -1,10 +1,10 @@
 generator client {
-    provider = "prisma-client"
-    output   = "../src/generated/prisma/client"
+    provider = "prisma-client-js"
 }
 
 datasource db {
     provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
 
 model User {
@@ -24,4 +24,38 @@ model User {
 enum Role {
     CUSTOMER
     ADMIN
+}
+
+model Product {
+    id            String    @id @default(uuid())
+    name          String
+    description   String?   @db.Text
+    price         Decimal   @db.Decimal(10, 2)
+    stockQuantity Int       @default(0) @map("stock_quantity")
+    imageUrl      String?   @map("image_url")
+    categoryId    String    @map("category_id")
+    deletedAt     DateTime? @map("deleted_at")
+    createdAt     DateTime  @default(now()) @map("created_at")
+    updatedAt     DateTime  @updatedAt @map("updated_at")
+
+    category Category @relation(fields: [categoryId], references: [id])
+
+    @@index([name])
+    @@index([categoryId])
+    @@map("products")
+}
+
+model Category {
+    id          String     @id @default(uuid())
+    name        String     @unique
+    description String?
+    parentId    String?    @map("parent_id")
+    parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+    children    Category[] @relation("CategoryHierarchy")
+    products    Product[]
+    deletedAt   DateTime?  @map("deleted_at")
+    createdAt   DateTime   @default(now()) @map("created_at")
+    updatedAt   DateTime   @updatedAt @map("updated_at")
+
+    @@map("categories")
 }

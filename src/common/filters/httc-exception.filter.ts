@@ -11,12 +11,9 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
-import { ErrorMessage } from '../constants/error-messages.constant';
-import { PrismaErrorCode } from '../constants/prisma-error-codes.constant';
-import {
-    PrismaClientKnownRequestError,
-    PrismaClientValidationError,
-} from 'src/generated/prisma/client/internal/prismaNamespace';
+import { ErrorMessage } from '../constants/error-messages';
+import { PrismaErrorCode } from '../constants/prisma-error-codes';
+import { PrismaClientKnownRequestError, PrismaClientValidationError } from '@prisma/client/runtime/library';
 
 // @Catch() with no argument = catches EVERYTHING
 // Spring equivalent: @RestControllerAdvice with @ExceptionHandler(Exception.class)
