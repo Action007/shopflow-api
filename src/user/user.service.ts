@@ -9,6 +9,8 @@ import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from '@prisma/client';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
+import { USER_SELECT } from 'src/common/constants/user-select';
+import { UserResponse } from './types/user-response.type';
 
 @Injectable()
 export class UserService {
@@ -35,9 +37,10 @@ export class UserService {
         });
     }
 
-    async findById(id: string): Promise<User> {
+    async findById(id: string): Promise<UserResponse> {
         const user = await this.prisma.user.findFirst({
             where: { id, deletedAt: null },
+            select: USER_SELECT,
         });
 
         if (!user) {
@@ -47,17 +50,26 @@ export class UserService {
         return user;
     }
 
+    async findByIdInternal(id: string): Promise<User | null> {
+        return this.prisma.user.findFirst({
+            where: { id, deletedAt: null },
+        });
+    }
+
     async findByEmail(email: string): Promise<User | null> {
         return this.prisma.user.findFirst({
             where: { email, deletedAt: null },
         });
     }
 
-    async findAll(): Promise<User[]> {
-        return await this.prisma.user.findMany({ where: { deletedAt: null } });
+    async findAll() {
+        return await this.prisma.user.findMany({
+            where: { deletedAt: null },
+            select: USER_SELECT,
+        });
     }
 
-    async update(id: string, dto: UpdateUserDto): Promise<User> {
+    async update(id: string, dto: UpdateUserDto): Promise<UserResponse> {
         const user = await this.prisma.user.findFirst({
             where: { id, deletedAt: null },
         });
@@ -69,9 +81,10 @@ export class UserService {
         return this.prisma.user.update({
             where: { id },
             data: { ...dto },
+            select: USER_SELECT,
         });
     }
-    
+
     async remove(id: string): Promise<void> {
         const user = await this.prisma.user.findFirst({
             where: { id, deletedAt: null },
