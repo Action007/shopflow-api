@@ -7,4 +7,7 @@ export const ServiceErrorMessage = {
     PRODUCT_NOT_FOUND: 'Product not found',
     INVALID_CREDENTIALS: 'Invalid credentials',
     REFRESH_TOKEN_NOT_FOUND: 'Refresh token not found',
+    INSUFFICIENT_STOCK: 'Insufficient stock',
+    INVALID_QUANTITY: "Invalid quantity",
+    ITEM_NOT_IN_CART: "Item not in cart",
 } as const;

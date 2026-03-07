@@ -1,7 +1,6 @@
 import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -36,7 +35,6 @@ export class AuthController {
         );
     }
 
-    @UseGuards(JwtAuthGuard)
     @Post('logout')
     async logout(@CurrentUser() user): Promise<void> {
         return this.authService.logout(user.id);

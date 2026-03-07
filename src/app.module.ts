@@ -1,13 +1,23 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from './prisma/prisma.module';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { HttpExceptionFilter } from './common/filters/httc-exception.filter';
 import { TransformResponseInterceptor } from './common/interceptors/transform-response.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { UserModule } from './user/user.module';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { AuthModule } from './auth/auth.module';
+import { CategoryModule } from './category/category.module';
+import { ProductModule } from './product/product.module';
 
 @Module({
-    imports: [PrismaModule, UserModule],
+    imports: [
+        PrismaModule,
+        UserModule,
+        AuthModule,
+        CategoryModule,
+        ProductModule,
+    ],
     controllers: [],
     providers: [
         {
@@ -21,6 +31,10 @@ import { UserModule } from './user/user.module';
         {
             provide: APP_INTERCEPTOR,
             useClass: LoggingInterceptor,
+        },
+        {
+            provide: APP_GUARD,
+            useClass: JwtAuthGuard,
         },
     ],
 })

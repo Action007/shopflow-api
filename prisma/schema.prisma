@@ -18,6 +18,7 @@ model User {
     createdAt     DateTime       @default(now()) @map("created_at")
     updatedAt     DateTime       @updatedAt @map("updated_at")
     refreshTokens RefreshToken[]
+    cart          Cart?
 
     @@map("users")
 }
@@ -39,7 +40,8 @@ model Product {
     createdAt     DateTime  @default(now()) @map("created_at")
     updatedAt     DateTime  @updatedAt @map("updated_at")
 
-    category Category @relation(fields: [categoryId], references: [id])
+    category  Category   @relation(fields: [categoryId], references: [id])
+    cartItems CartItem[]
 
     @@index([name])
     @@index([categoryId])
@@ -75,4 +77,30 @@ model RefreshToken {
 
     @@index([userId])
     @@map("refresh_tokens")
+}
+
+model Cart {
+    id        String   @id @default(uuid())
+    userId    String   @unique @map("user_id")
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    items CartItem[]
+
+    @@map("carts")
+}
+
+model CartItem {
+    id         String  @id @default(uuid())
+    cartId     String  @map("cart_id")
+    productId  String  @map("product_id")
+    quantity   Int
+    priceAtAdd Decimal @map("price_at_add") @db.Decimal(10, 2)
+
+    cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+    product Product @relation(fields: [productId], references: [id])
+
+    @@unique([cartId, productId])
+    @@map("cart_items")
 }

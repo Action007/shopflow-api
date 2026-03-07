@@ -3,41 +3,44 @@ import {
     Controller,
     Delete,
     Get,
-    HttpCode,
-    HttpStatus,
     Param,
     Patch,
-    Post,
+    UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Role } from '@prisma/client';
+import { Roles } from 'src/auth/decorators/roles.decorator';
 
 @Controller('users')
 export class UserController {
     constructor(private readonly userService: UserService) {}
 
-    @Post()
-    @HttpCode(HttpStatus.CREATED)
-    create(@Body() dto: CreateUserDto) {
-        return this.userService.create(dto);
+    @Get('me')
+    getMe(@CurrentUser() user) {
+        return this.userService.findById(user.id);
     }
 
+    @UseGuards(RolesGuard)
+    @Roles(Role.ADMIN)
     @Get()
     findAll() {
         return this.userService.findAll();
     }
 
-    @Get(':id')
-    findById(@Param('id') id: string) {
-        return this.userService.findById(id);
-    }
-
     @Patch(':id')
-    update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    update(
+        @Param('id') id: string,
+        @Body() dto: UpdateUserDto,
+        @CurrentUser() user,
+    ) {
         return this.userService.update(id, dto);
     }
 
+    @UseGuards(RolesGuard)
+    @Roles(Role.ADMIN)
     @Delete(':id')
     remove(@Param('id') id: string) {
         this.userService.remove(id);
