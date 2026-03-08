@@ -19,6 +19,7 @@ import { Roles } from 'src/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Public } from 'src/auth/decorators/public.decorator';
 
 @Controller('products')
 export class ProductController {
@@ -33,11 +34,13 @@ export class ProductController {
     }
 
     @Get()
+    @Public()
     findAll(@Query() query: ProductQueryDto) {
         return this.productService.findAll(query);
     }
 
     @Get(':id')
+    @Public()
     findById(@Param('id') id: string) {
         return this.productService.findById(id);
     }

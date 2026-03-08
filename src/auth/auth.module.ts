@@ -11,6 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
     imports: [
+        ConfigModule,
         PrismaModule,
         UserModule,
         PassportModule,
@@ -19,8 +20,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
             useFactory: (config: ConfigService) => ({
                 secret: config.getOrThrow<string>('JWT_SECRET'),
                 signOptions: {
-                    expiresIn: config.getOrThrow<number>(
-                        'JWT_ACCESS_EXPIRATION',
+                    expiresIn: Number(
+                        config.getOrThrow('JWT_ACCESS_EXPIRATION'),
                     ),
                 },
             }),

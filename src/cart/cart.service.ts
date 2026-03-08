@@ -10,9 +10,7 @@ import { ServiceErrorMessage } from 'src/common/constants/service-error-messages
 
 @Injectable()
 export class CartService {
-    constructor(
-        private readonly prisma: PrismaService,
-    ) {}
+    constructor(private readonly prisma: PrismaService) {}
 
     async getCart(userId: string): Promise<CartWithItems> {
         let cart = await this.prisma.cart.findFirst({
@@ -41,7 +39,7 @@ export class CartService {
         }
         if (product.stockQuantity < dto.quantity) {
             throw new BadRequestException(
-                ServiceErrorMessage.INSUFFICIENT_STOCK,
+                ServiceErrorMessage.INSUFFICIENT_STOCK(product.name),
             );
         }
 
@@ -102,7 +100,7 @@ export class CartService {
 
         if (product.stockQuantity < existingItem.quantity + quantity) {
             throw new BadRequestException(
-                ServiceErrorMessage.INSUFFICIENT_STOCK,
+                ServiceErrorMessage.INSUFFICIENT_STOCK(product.name),
             );
         }
 

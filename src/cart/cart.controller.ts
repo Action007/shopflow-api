@@ -13,6 +13,7 @@ import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { CartWithItems } from './types/cart-with-items.type';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { Public } from 'src/auth/decorators/public.decorator';
 
 @Controller('cart')
 export class CartController {
@@ -37,7 +38,11 @@ export class CartController {
         @Param('productId') productId: string,
         @Body('quantity') quantity: number,
     ): Promise<CartWithItems> {
-        return this.cartService.adjustItemQuantity(user.id, productId, quantity);
+        return this.cartService.adjustItemQuantity(
+            user.id,
+            productId,
+            quantity,
+        );
     }
 
     @Delete(':productId')
@@ -49,7 +54,6 @@ export class CartController {
     }
 
     @Delete()
-    @HttpCode(HttpStatus.NO_CONTENT)
     async clearCart(@CurrentUser() user: { id: string }): Promise<void> {
         return this.cartService.clearCart(user.id);
     }

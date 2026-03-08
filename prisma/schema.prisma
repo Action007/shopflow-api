@@ -19,6 +19,7 @@ model User {
     updatedAt     DateTime       @updatedAt @map("updated_at")
     refreshTokens RefreshToken[]
     cart          Cart?
+    orders        Order[]
 
     @@map("users")
 }
@@ -40,8 +41,9 @@ model Product {
     createdAt     DateTime  @default(now()) @map("created_at")
     updatedAt     DateTime  @updatedAt @map("updated_at")
 
-    category  Category   @relation(fields: [categoryId], references: [id])
-    cartItems CartItem[]
+    category   Category    @relation(fields: [categoryId], references: [id])
+    cartItems  CartItem[]
+    orderItems OrderItem[]
 
     @@index([name])
     @@index([categoryId])
@@ -103,4 +105,44 @@ model CartItem {
 
     @@unique([cartId, productId])
     @@map("cart_items")
+}
+
+model Order {
+    id              String      @id @default(uuid())
+    orderNumber     String      @unique @map("order_number")
+    userId          String      @map("user_id")
+    status          OrderStatus @default(PENDING)
+    totalAmount     Decimal     @map("total_amount") @db.Decimal(10, 2)
+    shippingAddress String      @map("shipping_address") @db.Text
+    paidAt          DateTime?   @map("paid_at")
+    createdAt       DateTime    @default(now()) @map("created_at")
+    updatedAt       DateTime    @updatedAt @map("updated_at")
+
+    user  User        @relation(fields: [userId], references: [id])
+    items OrderItem[]
+
+    @@index([userId])
+    @@map("orders")
+}
+
+model OrderItem {
+    id                    String  @id @default(uuid())
+    orderId               String  @map("order_id")
+    productId             String  @map("product_id")
+    quantity              Int
+    priceAtPurchase       Decimal @map("price_at_purchase") @db.Decimal(10, 2)
+    productNameAtPurchase String  @map("product_name_at_purchase")
+
+    order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+    product Product @relation(fields: [productId], references: [id])
+
+    @@map("order_items")
+}
+
+enum OrderStatus {
+    PENDING
+    PROCESSING
+    SHIPPED
+    DELIVERED
+    CANCELLED
 }

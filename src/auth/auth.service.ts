@@ -73,13 +73,20 @@ export class AuthService {
             );
         }
 
-        const user = await this.userService.findByIdInternal(tokenRecord.userId);
+        const user = await this.userService.findByIdInternal(
+            tokenRecord.userId,
+        );
 
         if (!user) {
             throw new UnauthorizedException(
                 ServiceErrorMessage.INVALID_CREDENTIALS,
             );
         }
+
+        await this.prisma.refreshToken.update({
+            where: { id: tokenRecord.id },
+            data: { revokedAt: new Date() },
+        });
 
         return this.generateTokens(user, userAgent);
     }

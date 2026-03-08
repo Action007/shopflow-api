@@ -13,3 +13,7 @@ export type CartWithItems = Prisma.CartGetPayload<{
 export const CART_INCLUDE = {
     items: { include: { product: true } },
 } satisfies Prisma.CartInclude;
+
+export const ORDER_INCLUDE = {
+    items: { include: { product: true } },
+} satisfies Prisma.OrderInclude;

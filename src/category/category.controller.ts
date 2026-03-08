@@ -17,6 +17,7 @@ import { Roles } from 'src/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Public } from 'src/auth/decorators/public.decorator';
 
 @Controller('categories')
 export class CategoryController {
@@ -31,11 +32,13 @@ export class CategoryController {
     }
 
     @Get()
+    @Public()
     findAll() {
         return this.categoryService.findAll();
     }
 
     @Get(':id')
+    @Public()
     findById(@Param('id') id: string) {
         return this.categoryService.findById(id);
     }
