@@ -14,7 +14,7 @@ import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { Role } from '@prisma/client';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { Roles } from 'src/auth/decorators/roles.decorator';
-import { UpdateOrderStatusDto } from 'src/cart/dto/update-order-status-dto';
+import { UpdateOrderStatusDto } from 'src/order/dto/update-order-status-dto';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 
 @Controller('orders')

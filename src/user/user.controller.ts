@@ -36,14 +36,12 @@ export class UserController {
         @Body() dto: UpdateUserDto,
         @CurrentUser() user,
     ) {
-        return this.userService.update(id, dto);
+        return this.userService.update(id, dto, user.id, user.role);
     }
-
     @UseGuards(RolesGuard)
     @Roles(Role.ADMIN)
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        this.userService.remove(id);
-        return null;
+    async remove(@Param('id') id: string) {
+        await this.userService.remove(id);
     }
 }

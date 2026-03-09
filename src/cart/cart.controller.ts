@@ -13,7 +13,6 @@ import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { CartWithItems } from './types/cart-with-items.type';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { Public } from 'src/auth/decorators/public.decorator';
 
 @Controller('cart')
 export class CartController {

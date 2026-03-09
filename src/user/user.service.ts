@@ -1,5 +1,6 @@
 import {
     ConflictException,
+    ForbiddenException,
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
@@ -7,7 +8,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
 import { USER_SELECT } from 'src/common/constants/user-select';
 import { UserResponse } from './types/user-response.type';
@@ -69,7 +70,15 @@ export class UserService {
         });
     }
 
-    async update(id: string, dto: UpdateUserDto): Promise<UserResponse> {
+    async update(
+        id: string,
+        dto: UpdateUserDto,
+        currentUserId: string,
+        currentUserRole: Role,
+    ) {
+        if (currentUserId !== id && currentUserRole !== Role.ADMIN) {
+            throw new ForbiddenException();
+        }
         const user = await this.prisma.user.findFirst({
             where: { id, deletedAt: null },
         });
