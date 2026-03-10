@@ -12,6 +12,7 @@ import { ProductModule } from './product/product.module';
 import { CartModule } from './cart/cart.module';
 import { OrderModule } from './order/order.module';
 import { HealthModule } from './health/health.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
     imports: [
@@ -22,7 +23,8 @@ import { HealthModule } from './health/health.module';
         ProductModule,
         CartModule,
         OrderModule,
-        HealthModule
+        HealthModule,
+        ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     ],
     controllers: [],
     providers: [
@@ -42,6 +44,7 @@ import { HealthModule } from './health/health.module';
             provide: APP_GUARD,
             useClass: JwtAuthGuard,
         },
+        { provide: APP_GUARD, useClass: ThrottlerGuard },
     ],
 })
 export class AppModule {}

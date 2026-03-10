@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+*.md
+coverage
+test
+.github
+.prettierrc
+.eslintrc*
+eslint.config.*
