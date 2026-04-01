@@ -1,12 +1,22 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+    BadRequestException,
+    ForbiddenException,
+    Injectable,
+    NotFoundException,
+} from '@nestjs/common';
 import { Order, OrderStatus, Prisma, Role } from '@prisma/client';
 import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { PaginatedResult } from 'src/common/types/paginated-result.type';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PlaceOrderDto } from './dto/place-order.dto';
-import { CART_INCLUDE, ORDER_INCLUDE } from 'src/cart/types/cart-with-items.type';
+import {
+    CART_INCLUDE,
+    ORDER_INCLUDE,
+} from 'src/cart/types/cart-with-items.type';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
 import { buildPaginationMeta } from 'src/common/utils/paginate';
+import { randomUUID } from 'crypto';
+import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class OrderService {
@@ -45,10 +55,11 @@ export class OrderService {
             }
 
             const totalAmount = cart.items.reduce(
-                (sum, item) => sum + item.quantity * Number(item.product.price),
-                0,
+                (sum, item) =>
+                    sum.add(new Decimal(item.quantity).mul(item.product.price)),
+                new Decimal(0),
             );
-            const orderNumber = `ORD-${Date.now()}`;
+            const orderNumber = `ORD-${randomUUID().split('-')[0].toUpperCase()}-${Date.now()}`;
 
             const order = await tx.order.create({
                 data: {
@@ -143,12 +154,14 @@ export class OrderService {
                 );
             }
 
-            for (const item of order.items) {
-                await tx.product.update({
-                    where: { id: item.productId },
-                    data: { stockQuantity: { increment: item.quantity } },
-                });
-            }
+            await Promise.all(
+                order.items.map((item) => {
+                    return tx.product.update({
+                        where: { id: item.productId },
+                        data: { stockQuantity: { increment: item.quantity } },
+                    });
+                }),
+            );
 
             return tx.order.update({
                 where: { id: orderId },
