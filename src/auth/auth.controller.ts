@@ -26,6 +26,8 @@ export class AuthController {
         return this.authService.login(req.user, req.headers['user-agent']);
     }
 
+    @Post('refresh')
+    @Public()
     async refresh(@Request() req): Promise<AuthResponseDto> {
         return this.authService.refreshTokens(
             req.cookies['refresh_token'],
