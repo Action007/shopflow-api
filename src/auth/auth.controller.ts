@@ -3,7 +3,6 @@ import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { RegisterDto } from './dto/register.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from './decorators/public.decorator';
 
@@ -27,14 +26,9 @@ export class AuthController {
         return this.authService.login(req.user, req.headers['user-agent']);
     }
 
-    @Post('refresh')
-    @Public()
-    async refresh(
-        @Body() dto: RefreshTokenDto,
-        @Request() req,
-    ): Promise<AuthResponseDto> {
+    async refresh(@Request() req): Promise<AuthResponseDto> {
         return this.authService.refreshTokens(
-            dto.refreshToken,
+            req.cookies['refresh_token'],
             req.headers['user-agent'],
         );
     }
