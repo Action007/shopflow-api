@@ -13,6 +13,7 @@ import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { CartWithItems } from './types/cart-with-items.type';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { AdjustCartItemDto } from './dto/adjust-cart-item.dto';
 
 @Controller('cart')
 export class CartController {
@@ -35,12 +36,12 @@ export class CartController {
     async adjustItemQuantity(
         @CurrentUser() user: { id: string },
         @Param('productId') productId: string,
-        @Body('quantity') quantity: number,
+        @Body() dto: AdjustCartItemDto,
     ): Promise<CartWithItems> {
         return this.cartService.adjustItemQuantity(
             user.id,
             productId,
-            quantity,
+            dto.quantity,
         );
     }
 
