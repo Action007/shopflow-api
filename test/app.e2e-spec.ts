@@ -143,7 +143,7 @@ describe('E-Commerce API (e2e)', () => {
         it('POST /auth/refresh — valid refresh token returns new pair', async () => {
             const res = await request(app.getHttpServer())
                 .post('/api/v1/auth/refresh')
-                .send({ refreshToken: customerRefreshToken })
+                .set('Cookie', `refresh_token=${customerRefreshToken}`)
                 .expect(201);
 
             expect(res.body.data.accessToken).toBeDefined();
@@ -155,7 +155,7 @@ describe('E-Commerce API (e2e)', () => {
         it('POST /auth/refresh — invalid token returns 401', async () => {
             await request(app.getHttpServer())
                 .post('/api/v1/auth/refresh')
-                .send({ refreshToken: 'totally-invalid-token' })
+                .set('Cookie', 'refresh_token=totally-invalid-token')
                 .expect(401);
         });
     });

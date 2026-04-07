@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 
 export async function configureApp(
     app: INestApplication,
@@ -9,6 +10,7 @@ export async function configureApp(
 
     app.use(helmet());
     app.use(compression());
+    app.use(cookieParser());
     app.enableCors({
         origin: '*',
         credentials: true,
