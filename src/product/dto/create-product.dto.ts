@@ -1,4 +1,12 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Matches, Min } from "class-validator";
+import {
+    IsInt,
+    IsNotEmpty,
+    IsOptional,
+    IsString,
+    IsUUID,
+    Matches,
+    Min,
+} from 'class-validator';
 
 export class CreateProductDto {
     @IsString()
@@ -8,6 +16,9 @@ export class CreateProductDto {
     @IsOptional()
     @IsString()
     description?: string;
+
+    @IsString()
+    imageUrl: string;
 
     @IsString()
     @Matches(/^\d+(\.\d{1,2})?$/, {

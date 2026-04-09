@@ -37,7 +37,7 @@ export class CartService {
         if (!product) {
             throw new NotFoundException(ServiceErrorMessage.PRODUCT_NOT_FOUND);
         }
-        
+
         const existingItem = cart.items.find(
             (item) => item.productId === dto.productId,
         );
@@ -99,7 +99,7 @@ export class CartService {
 
             const product = await tx.product.findFirst({
                 where: { id: productId, deletedAt: null },
-                select: { stockQuantity: true },
+                select: { stockQuantity: true, name: true },
             });
 
             if (!product) {
@@ -110,7 +110,7 @@ export class CartService {
 
             if (product.stockQuantity < quantity) {
                 throw new BadRequestException(
-                    ServiceErrorMessage.INSUFFICIENT_STOCK,
+                    ServiceErrorMessage.INSUFFICIENT_STOCK(product.name),
                 );
             }
 

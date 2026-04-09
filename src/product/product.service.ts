@@ -28,6 +28,7 @@ export class ProductService {
                 price: new Prisma.Decimal(dto.price),
                 stockQuantity: dto.stockQuantity,
                 categoryId: dto.categoryId,
+                imageUrl: dto.imageUrl
             },
             include: { category: true },
         });
