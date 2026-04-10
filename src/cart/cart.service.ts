@@ -7,19 +7,25 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CART_INCLUDE, CartWithItems } from './types/cart-with-items.type';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
+import { Prisma } from '@prisma/client';
+
+type PrismaTransactionClient = Prisma.TransactionClient;
 
 @Injectable()
 export class CartService {
     constructor(private readonly prisma: PrismaService) {}
 
-    async getCart(userId: string): Promise<CartWithItems> {
-        let cart = await this.prisma.cart.findFirst({
+    async getCart(
+        userId: string,
+        tx: PrismaTransactionClient = this.prisma,
+    ): Promise<CartWithItems> {
+        let cart = await tx.cart.findFirst({
             where: { userId },
             include: CART_INCLUDE,
         });
 
         if (!cart) {
-            cart = await this.prisma.cart.create({
+            cart = await tx.cart.create({
                 data: { userId },
                 include: CART_INCLUDE,
             });
@@ -29,44 +35,49 @@ export class CartService {
     }
 
     async addItem(userId: string, dto: AddToCartDto): Promise<CartWithItems> {
-        const cart = await this.getCart(userId);
+        return this.prisma.$transaction(async (tx) => {
+            const cart = await this.getCart(userId, tx);
 
-        const product = await this.prisma.product.findFirst({
-            where: { id: dto.productId, deletedAt: null },
-        });
-        if (!product) {
-            throw new NotFoundException(ServiceErrorMessage.PRODUCT_NOT_FOUND);
-        }
+            const product = await tx.product.findFirst({
+                where: { id: dto.productId, deletedAt: null },
+            });
 
-        const existingItem = cart.items.find(
-            (item) => item.productId === dto.productId,
-        );
-        const currentCartQuantity = existingItem?.quantity ?? 0;
-        const totalQuantity = currentCartQuantity + dto.quantity;
+            if (!product) {
+                throw new NotFoundException(
+                    ServiceErrorMessage.PRODUCT_NOT_FOUND,
+                );
+            }
 
-        if (product.stockQuantity < totalQuantity) {
-            throw new BadRequestException(
-                ServiceErrorMessage.INSUFFICIENT_STOCK(product.name),
+            const existingItem = cart.items.find(
+                (item) => item.productId === dto.productId,
             );
-        }
+            const currentCartQuantity = existingItem?.quantity ?? 0;
+            const totalQuantity = currentCartQuantity + dto.quantity;
 
-        if (existingItem) {
-            await this.prisma.cartItem.update({
-                where: { id: existingItem.id },
-                data: { quantity: existingItem.quantity + dto.quantity },
-            });
-        } else {
-            await this.prisma.cartItem.create({
-                data: {
-                    cartId: cart.id,
-                    productId: dto.productId,
-                    quantity: dto.quantity,
-                    priceAtAdd: product.price,
-                },
-            });
-        }
+            if (product.stockQuantity < totalQuantity) {
+                throw new BadRequestException(
+                    ServiceErrorMessage.INSUFFICIENT_STOCK(product.name),
+                );
+            }
 
-        return this.getCart(userId);
+            if (existingItem) {
+                await tx.cartItem.update({
+                    where: { id: existingItem.id },
+                    data: { quantity: existingItem.quantity + dto.quantity },
+                });
+            } else {
+                await tx.cartItem.create({
+                    data: {
+                        cartId: cart.id,
+                        productId: dto.productId,
+                        quantity: dto.quantity,
+                        priceAtAdd: product.price,
+                    },
+                });
+            }
+
+            return this.getCart(userId, tx);
+        });
     }
 
     async adjustItemQuantity(
@@ -80,10 +91,7 @@ export class CartService {
 
         return this.prisma.$transaction(async (tx) => {
             const cartItem = await tx.cartItem.findFirst({
-                where: {
-                    cart: { userId },
-                    productId,
-                },
+                where: { cart: { userId }, productId },
             });
 
             if (!cartItem) {
@@ -94,7 +102,7 @@ export class CartService {
 
             if (quantity === 0) {
                 await tx.cartItem.delete({ where: { id: cartItem.id } });
-                return this.getCart(userId);
+                return this.getCart(userId, tx);
             }
 
             const product = await tx.product.findFirst({
@@ -119,7 +127,7 @@ export class CartService {
                 data: { quantity },
             });
 
-            return this.getCart(userId);
+            return this.getCart(userId, tx);
         });
     }
 
@@ -127,22 +135,21 @@ export class CartService {
         userId: string,
         productId: string,
     ): Promise<CartWithItems> {
-        const cartItem = await this.prisma.cartItem.findFirst({
-            where: {
-                cart: { userId },
-                productId,
-            },
+        return this.prisma.$transaction(async (tx) => {
+            const cartItem = await tx.cartItem.findFirst({
+                where: { cart: { userId }, productId },
+            });
+
+            if (!cartItem) {
+                throw new NotFoundException(
+                    ServiceErrorMessage.ITEM_NOT_IN_CART,
+                );
+            }
+
+            await tx.cartItem.delete({ where: { id: cartItem.id } });
+
+            return this.getCart(userId, tx);
         });
-
-        if (!cartItem) {
-            throw new NotFoundException(ServiceErrorMessage.ITEM_NOT_IN_CART);
-        }
-
-        await this.prisma.cartItem.delete({
-            where: { id: cartItem.id },
-        });
-
-        return this.getCart(userId);
     }
 
     async clearCart(userId: string): Promise<void> {

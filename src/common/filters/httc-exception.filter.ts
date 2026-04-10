@@ -81,6 +81,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
             this.logger.error('Unhandled exception:', exception);
         }
 
+        this.logException({
+            request,
+            statusCode,
+            message,
+            exception,
+        });
+
         response.status(statusCode).json({
             success: false,
             statusCode,
@@ -101,5 +108,29 @@ export class HttpExceptionFilter implements ExceptionFilter {
             errors[field].push(msg);
         }
         return errors;
+    }
+
+    private logException({
+        request,
+        statusCode,
+        message,
+        exception,
+    }: {
+        request: Request;
+        statusCode: number;
+        message: string;
+        exception: unknown;
+    }) {
+        const context = `${request.method} ${request.url} -> ${statusCode}`;
+
+        if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
+            this.logger.error(
+                `${context} | ${message}`,
+                exception instanceof Error ? exception.stack : undefined,
+            );
+            return;
+        }
+
+        this.logger.warn(`${context} | ${message}`);
     }
 }
