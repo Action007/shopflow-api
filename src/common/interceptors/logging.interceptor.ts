@@ -29,18 +29,6 @@ export class LoggingInterceptor implements NestInterceptor {
                         `${method} ${url} -> ${res.statusCode} (${duration}ms)`,
                     );
                 },
-                error: (error: unknown) => {
-                    const duration = Date.now() - start;
-                    const statusCode =
-                        error instanceof HttpException
-                            ? error.getStatus()
-                            : HttpStatus.INTERNAL_SERVER_ERROR;
-
-                    this.logger.error(
-                        `${method} ${url} -> ${statusCode} (${duration}ms)`,
-                        error instanceof Error ? error.stack : undefined,
-                    );
-                },
             }),
         );
     }
