@@ -273,6 +273,7 @@ describe('E-Commerce API (e2e)', () => {
                     name: 'Hacked',
                     price: '1.00',
                     stockQuantity: 1,
+                    imageUrl: "https://picsum.photos/200/300",
                     categoryId,
                 })
                 .expect(403);
@@ -285,6 +286,7 @@ describe('E-Commerce API (e2e)', () => {
                     name: 'NoAuth',
                     price: '1.00',
                     stockQuantity: 1,
+                    imageUrl: "https://picsum.photos/200/300",
                     categoryId,
                 })
                 .expect(401);
