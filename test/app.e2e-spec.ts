@@ -257,6 +257,7 @@ describe('E-Commerce API (e2e)', () => {
                     name: 'New Product',
                     price: '49.99',
                     stockQuantity: 5,
+                    imageUrl: "https://picsum.photos/200/300",
                     categoryId,
                 })
                 .expect(201);
