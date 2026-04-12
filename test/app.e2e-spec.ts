@@ -5,25 +5,14 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { configureApp } from '../src/create-app';
 import * as bcrypt from 'bcrypt';
-import { Role } from '@prisma/client';
+import { Role, User } from '@prisma/client';
+import { AuthService } from '../src/auth/auth.service';
 
-/**
- * E2E Tests
- *
- * These boot the FULL application (all modules, real DI container)
- * and hit endpoints with real HTTP requests via supertest.
- *
- * REQUIRES: A running PostgreSQL database pointed to by DATABASE_URL.
- * The database gets cleaned before each test.
- *
- * Spring parallel: This is like @SpringBootTest with TestRestTemplate,
- * but configureApp() ensures identical config to production (no drift).
- */
 describe('E-Commerce API (e2e)', () => {
     let app: INestApplication;
     let prisma: PrismaService;
+    let authService: AuthService;
 
-    // Auth tokens for test requests
     let adminToken: string;
     let customerToken: string;
     let customerRefreshToken: string;
@@ -36,11 +25,11 @@ describe('E-Commerce API (e2e)', () => {
         app = moduleFixture.createNestApplication();
         await configureApp(app); // Same config as production — no drift
         prisma = app.get(PrismaService);
+        authService = app.get(AuthService);
         await app.init();
     });
 
     beforeEach(async () => {
-        // Clean DB in FK-safe order
         await prisma.orderItem.deleteMany();
         await prisma.order.deleteMany();
         await prisma.cartItem.deleteMany();
@@ -53,7 +42,7 @@ describe('E-Commerce API (e2e)', () => {
         // Seed test users
         const hashedPassword = await bcrypt.hash('Password123!', 10);
 
-        await prisma.user.create({
+        const adminUser = await prisma.user.create({
             data: {
                 firstName: 'Admin',
                 lastName: 'User',
@@ -63,7 +52,7 @@ describe('E-Commerce API (e2e)', () => {
             },
         });
 
-        await prisma.user.create({
+        const customerUser = await prisma.user.create({
             data: {
                 firstName: 'Customer',
                 lastName: 'User',
@@ -73,17 +62,12 @@ describe('E-Commerce API (e2e)', () => {
             },
         });
 
-        // Login both users to get tokens
-        const adminLogin = await request(app.getHttpServer())
-            .post('/api/v1/auth/login')
-            .send({ email: 'admin@test.com', password: 'Password123!' });
-        adminToken = adminLogin.body.data.accessToken;
+        const adminLogin = await authService.login(adminUser as User);
+        adminToken = adminLogin.accessToken;
 
-        const customerLogin = await request(app.getHttpServer())
-            .post('/api/v1/auth/login')
-            .send({ email: 'customer@test.com', password: 'Password123!' });
-        customerToken = customerLogin.body.data.accessToken;
-        customerRefreshToken = customerLogin.body.data.refreshToken;
+        const customerLogin = await authService.login(customerUser as User);
+        customerToken = customerLogin.accessToken;
+        customerRefreshToken = customerLogin.refreshToken;
     });
 
     afterAll(async () => {
@@ -187,7 +171,8 @@ describe('E-Commerce API (e2e)', () => {
                 .set('Authorization', `Bearer ${adminToken}`)
                 .expect(200);
 
-            expect(res.body.data.length).toBeGreaterThanOrEqual(2);
+            expect(res.body.data.items.length).toBeGreaterThanOrEqual(2);
+            expect(res.body.data.meta.total).toBeGreaterThanOrEqual(2);
         });
 
         it('GET /users — customer gets 403', async () => {
