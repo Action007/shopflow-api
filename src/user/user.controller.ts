@@ -5,6 +5,8 @@ import {
     Get,
     Param,
     Patch,
+    ParseUUIDPipe,
+    Query,
     UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
@@ -13,6 +15,7 @@ import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Role } from '@prisma/client';
 import { Roles } from 'src/auth/decorators/roles.decorator';
+import { UserQueryDto } from './dto/user-query.dto';
 
 @Controller('users')
 export class UserController {
@@ -26,13 +29,13 @@ export class UserController {
     @UseGuards(RolesGuard)
     @Roles(Role.ADMIN)
     @Get()
-    findAll() {
-        return this.userService.findAll();
+    findAll(@Query() query: UserQueryDto) {
+        return this.userService.findAll(query);
     }
 
     @Patch(':id')
     update(
-        @Param('id') id: string,
+        @Param('id', ParseUUIDPipe) id: string,
         @Body() dto: UpdateUserDto,
         @CurrentUser() user,
     ) {
@@ -41,7 +44,7 @@ export class UserController {
     @UseGuards(RolesGuard)
     @Roles(Role.ADMIN)
     @Delete(':id')
-    async remove(@Param('id') id: string) {
+    async remove(@Param('id', ParseUUIDPipe) id: string) {
         await this.userService.remove(id);
     }
 }

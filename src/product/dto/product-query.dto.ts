@@ -1,5 +1,11 @@
-import { IsOptional, IsString, IsUUID, Matches } from "class-validator";
-import { PaginationQueryDto } from "src/common/dto/pagination-query.dto";
+import {
+    IsIn,
+    IsOptional,
+    IsString,
+    IsUUID,
+    Matches,
+} from 'class-validator';
+import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 
 export class ProductQueryDto extends PaginationQueryDto {
     @IsOptional()
@@ -23,4 +29,13 @@ export class ProductQueryDto extends PaginationQueryDto {
     @IsOptional()
     @IsString()
     search?: string;
+
+    @IsOptional()
+    @IsIn(['createdAt', 'updatedAt', 'name', 'price', 'stockQuantity'])
+    override sortBy?:
+        | 'createdAt'
+        | 'updatedAt'
+        | 'name'
+        | 'price'
+        | 'stockQuantity' = 'createdAt';
 }

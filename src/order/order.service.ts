@@ -20,6 +20,20 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class OrderService {
+    private static readonly VALID_TRANSITIONS: Record<
+        OrderStatus,
+        OrderStatus[]
+    > = {
+        [OrderStatus.PENDING]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
+        [OrderStatus.PROCESSING]: [
+            OrderStatus.SHIPPED,
+            OrderStatus.CANCELLED,
+        ],
+        [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED],
+        [OrderStatus.DELIVERED]: [],
+        [OrderStatus.CANCELLED]: [],
+    };
+
     constructor(private readonly prisma: PrismaService) {}
 
     async placeOrder(userId: string, dto: PlaceOrderDto): Promise<Order> {
@@ -181,6 +195,13 @@ export class OrderService {
 
         if (!order) {
             throw new NotFoundException(ServiceErrorMessage.ORDER_NOT_FOUND);
+        }
+
+        const allowedStatuses = OrderService.VALID_TRANSITIONS[order.status];
+        if (!allowedStatuses.includes(status)) {
+            throw new BadRequestException(
+                `Cannot transition from ${order.status} to ${status}`,
+            );
         }
 
         return this.prisma.order.update({

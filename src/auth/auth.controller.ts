@@ -1,4 +1,5 @@
 import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -12,6 +13,7 @@ export class AuthController {
 
     @Post('register')
     @Public()
+    @Throttle({ default: { limit: 5, ttl: 60000 } })
     async register(
         @Body() dto: RegisterDto,
         @Request() req,
@@ -22,12 +24,14 @@ export class AuthController {
     @UseGuards(LocalAuthGuard)
     @Post('login')
     @Public()
+    @Throttle({ default: { limit: 5, ttl: 60000 } })
     async login(@Request() req): Promise<AuthResponseDto> {
         return this.authService.login(req.user, req.headers['user-agent']);
     }
 
     @Post('refresh')
     @Public()
+    @Throttle({ default: { limit: 10, ttl: 60000 } })
     async refresh(@Request() req): Promise<AuthResponseDto> {
         return this.authService.refreshTokens(
             req.cookies['refresh_token'],
@@ -36,6 +40,7 @@ export class AuthController {
     }
 
     @Post('logout')
+    @Throttle({ default: { limit: 10, ttl: 60000 } })
     async logout(@CurrentUser() user): Promise<void> {
         return this.authService.logout(user.id);
     }

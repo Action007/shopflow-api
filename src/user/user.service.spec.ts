@@ -170,13 +170,24 @@ describe('UserService', () => {
                 },
             ];
             prisma.user.findMany.mockResolvedValue(users);
+            prisma.user.count = jest.fn().mockResolvedValue(users.length);
 
             const result = await service.findAll();
 
-            expect(result).toEqual(users);
+            expect(result).toEqual({
+                items: users,
+                meta: expect.objectContaining({
+                    total: users.length,
+                    page: 1,
+                    limit: 10,
+                }),
+            });
             expect(prisma.user.findMany).toHaveBeenCalledWith({
                 where: { deletedAt: null },
                 select: expect.objectContaining({ id: true, email: true }),
+                skip: 0,
+                take: 10,
+                orderBy: { createdAt: 'desc' },
             });
         });
     });

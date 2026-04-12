@@ -8,6 +8,7 @@ import {
     Body,
     HttpCode,
     HttpStatus,
+    ParseUUIDPipe,
     Query,
     UseGuards,
 } from '@nestjs/common';
@@ -40,21 +41,24 @@ export class ProductController {
 
     @Get(':id')
     @Public()
-    findById(@Param('id') id: string) {
+    findById(@Param('id', ParseUUIDPipe) id: string) {
         return this.productService.findById(id);
     }
 
     @UseGuards(RolesGuard)
     @Roles(Role.ADMIN)
     @Patch(':id')
-    update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+    update(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: UpdateProductDto,
+    ) {
         return this.productService.update(id, dto);
     }
 
     @UseGuards(RolesGuard)
     @Roles(Role.ADMIN)
     @Delete(':id')
-    remove(@Param('id') id: string) {
+    remove(@Param('id', ParseUUIDPipe) id: string) {
         return this.productService.remove(id);
     }
 }

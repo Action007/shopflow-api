@@ -23,7 +23,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://ecommerce_user:${DB_PASSWORD:-changeme}@postgres:5432/ecommerce
-      JWT_SECRET: ${JWT_SECRET:-dev-secret-minimum-32-characters-long}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_ACCESS_EXPIRATION: 3600
       JWT_REFRESH_EXPIRATION: 604800
       NODE_ENV: production

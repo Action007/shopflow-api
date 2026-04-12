@@ -8,6 +8,7 @@ import {
     Body,
     HttpCode,
     HttpStatus,
+    ParseUUIDPipe,
     UseGuards,
 } from '@nestjs/common';
 import { CategoryService } from './category.service';
@@ -15,7 +16,6 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Public } from 'src/auth/decorators/public.decorator';
 
@@ -39,21 +39,24 @@ export class CategoryController {
 
     @Get(':id')
     @Public()
-    findById(@Param('id') id: string) {
+    findById(@Param('id', ParseUUIDPipe) id: string) {
         return this.categoryService.findById(id);
     }
 
     @UseGuards(RolesGuard)
     @Roles(Role.ADMIN)
     @Patch(':id')
-    update(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
+    update(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: UpdateCategoryDto,
+    ) {
         return this.categoryService.update(id, dto);
     }
 
     @UseGuards(RolesGuard)
     @Roles(Role.ADMIN)
     @Delete(':id')
-    remove(@Param('id') id: string) {
+    remove(@Param('id', ParseUUIDPipe) id: string) {
         return this.categoryService.remove(id);
     }
 }

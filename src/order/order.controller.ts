@@ -4,6 +4,7 @@ import {
     Get,
     Param,
     Patch,
+    ParseUUIDPipe,
     Post,
     Query,
     UseGuards,
@@ -40,7 +41,7 @@ export class OrderController {
     @Get(':id')
     async getOrderById(
         @CurrentUser() user: { id: string; role: Role },
-        @Param('id') id: string,
+        @Param('id', ParseUUIDPipe) id: string,
     ) {
         return this.orderService.getOrderById(id, user.id, user.role);
     }
@@ -48,7 +49,7 @@ export class OrderController {
     @Post(':id/cancel')
     async cancelOrder(
         @CurrentUser() user: { id: string },
-        @Param('id') id: string,
+        @Param('id', ParseUUIDPipe) id: string,
     ) {
         return this.orderService.cancelOrder(id, user.id);
     }
@@ -57,7 +58,7 @@ export class OrderController {
     @UseGuards(RolesGuard)
     @Patch(':id/status')
     async updateOrderStatus(
-        @Param('id') id: string,
+        @Param('id', ParseUUIDPipe) id: string,
         @Body() dto: UpdateOrderStatusDto,
     ) {
         return this.orderService.updateOrderStatus(id, dto.status);

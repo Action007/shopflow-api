@@ -153,7 +153,7 @@ export class CartService {
     }
 
     async clearCart(userId: string): Promise<void> {
-        await this.prisma.cart.delete({
+        await this.prisma.cart.deleteMany({
             where: { userId },
         });
     }

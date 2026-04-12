@@ -7,6 +7,7 @@ import {
     HttpStatus,
     Param,
     Patch,
+    ParseUUIDPipe,
     Post,
 } from '@nestjs/common';
 import { CartService } from './cart.service';
@@ -35,7 +36,7 @@ export class CartController {
     @Patch(':productId')
     async adjustItemQuantity(
         @CurrentUser() user: { id: string },
-        @Param('productId') productId: string,
+        @Param('productId', ParseUUIDPipe) productId: string,
         @Body() dto: AdjustCartItemDto,
     ): Promise<CartWithItems> {
         return this.cartService.adjustItemQuantity(
@@ -48,7 +49,7 @@ export class CartController {
     @Delete(':productId')
     async removeItem(
         @CurrentUser() user: { id: string },
-        @Param('productId') productId: string,
+        @Param('productId', ParseUUIDPipe) productId: string,
     ): Promise<CartWithItems> {
         return this.cartService.removeItem(user.id, productId);
     }

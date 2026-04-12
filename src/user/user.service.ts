@@ -12,6 +12,10 @@ import { Role, User } from '@prisma/client';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
 import { USER_SELECT } from 'src/common/constants/user-select';
 import { UserResponse } from './types/user-response.type';
+import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
+import { PaginatedResult } from 'src/common/types/paginated-result.type';
+import { buildPaginationMeta } from 'src/common/utils/paginate';
+import { UserQueryDto } from './dto/user-query.dto';
 
 @Injectable()
 export class UserService {
@@ -63,11 +67,33 @@ export class UserService {
         });
     }
 
-    async findAll() {
-        return await this.prisma.user.findMany({
-            where: { deletedAt: null },
-            select: USER_SELECT,
-        });
+    async findAll(
+        query: UserQueryDto = {},
+    ): Promise<PaginatedResult<UserResponse>> {
+        const {
+            page = 1,
+            limit = 10,
+            sortBy = 'createdAt',
+            sortOrder = 'desc',
+        } = query;
+
+        const where = { deletedAt: null };
+
+        const [items, total] = await Promise.all([
+            this.prisma.user.findMany({
+                where,
+                select: USER_SELECT,
+                skip: (page - 1) * limit,
+                take: limit,
+                orderBy: { [sortBy]: sortOrder },
+            }),
+            this.prisma.user.count({ where }),
+        ]);
+
+        return {
+            items,
+            meta: buildPaginationMeta(total, page, limit),
+        };
     }
 
     async update(

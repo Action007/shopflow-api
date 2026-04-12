@@ -41,6 +41,7 @@ describe('CartService', () => {
 
     beforeEach(async () => {
         prisma = createMockPrismaService();
+        prisma.$transaction.mockImplementation(async (callback) => callback(prisma));
 
         const module: TestingModule = await Test.createTestingModule({
             providers: [
@@ -168,12 +169,12 @@ describe('CartService', () => {
     // ===== CLEAR CART =====
 
     describe('clearCart', () => {
-        it('should delete the cart', async () => {
-            prisma.cart.delete.mockResolvedValue(mockCart);
+        it('should clear the cart idempotently', async () => {
+            prisma.cart.deleteMany.mockResolvedValue({ count: 1 });
 
             await service.clearCart('user-1');
 
-            expect(prisma.cart.delete).toHaveBeenCalledWith({
+            expect(prisma.cart.deleteMany).toHaveBeenCalledWith({
                 where: { userId: 'user-1' },
             });
         });
