@@ -16,6 +16,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
 import { validate } from './config/env.validation';
 import { UploadModule } from './upload/upload.module';
+import { WishlistModule } from './wishlist/wishlist.module';
 
 @Module({
     imports: [
@@ -28,6 +29,7 @@ import { UploadModule } from './upload/upload.module';
         OrderModule,
         HealthModule,
         UploadModule,
+        WishlistModule,
         ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
         ConfigModule.forRoot({
             isGlobal: true,

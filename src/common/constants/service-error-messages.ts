@@ -10,6 +10,7 @@ export const ServiceErrorMessage = {
     INSUFFICIENT_STOCK: (name: string) => `Insufficient stock for ${name}`,
     INVALID_QUANTITY: "Invalid quantity",
     ITEM_NOT_IN_CART: "Item not in cart",
+    ITEM_NOT_IN_WISHLIST: 'Item not in wishlist',
     CART_IS_EMPTY: "Cart is empty",
     ORDER_NOT_FOUND: "Order not found",
     ORDER_NOT_CANCELLABLE: "Order not cancellable",

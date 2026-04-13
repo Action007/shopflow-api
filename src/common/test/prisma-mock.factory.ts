@@ -55,6 +55,21 @@ export const createMockPrismaService = () => ({
         delete: jest.fn(),
         deleteMany: jest.fn(),
     },
+    wishlist: {
+        create: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        deleteMany: jest.fn(),
+    },
+    wishlistItem: {
+        create: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+        delete: jest.fn(),
+        deleteMany: jest.fn(),
+    },
     order: {
         create: jest.fn(),
         findFirst: jest.fn(),

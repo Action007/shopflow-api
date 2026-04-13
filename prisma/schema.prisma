@@ -21,6 +21,7 @@ model User {
     refreshTokens RefreshToken[]
     uploads       Upload[]
     cart          Cart?
+    wishlist      Wishlist?
     orders        Order[]
 
     @@map("users")
@@ -45,6 +46,7 @@ model Product {
 
     category   Category    @relation(fields: [categoryId], references: [id])
     cartItems  CartItem[]
+    wishlistItems WishlistItem[]
     orderItems OrderItem[]
 
     @@index([name])
@@ -139,6 +141,31 @@ model OrderItem {
     product Product @relation(fields: [productId], references: [id])
 
     @@map("order_items")
+}
+
+model Wishlist {
+    id        String         @id @default(uuid())
+    userId    String         @unique @map("user_id")
+    createdAt DateTime       @default(now()) @map("created_at")
+    updatedAt DateTime       @updatedAt @map("updated_at")
+
+    user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    items WishlistItem[]
+
+    @@map("wishlists")
+}
+
+model WishlistItem {
+    id         String   @id @default(uuid())
+    wishlistId String   @map("wishlist_id")
+    productId  String   @map("product_id")
+    createdAt  DateTime @default(now()) @map("created_at")
+
+    wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+    product  Product  @relation(fields: [productId], references: [id])
+
+    @@unique([wishlistId, productId])
+    @@map("wishlist_items")
 }
 
 model Upload {
