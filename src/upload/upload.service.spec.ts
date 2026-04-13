@@ -188,7 +188,7 @@ describe('UploadService', () => {
                     'user-1',
                     Role.CUSTOMER,
                 ),
-            ).rejects.toThrow(ForbiddenException);
+            ).rejects.toThrow(BadRequestException);
 
             expect(prisma.upload.delete).not.toHaveBeenCalled();
         });

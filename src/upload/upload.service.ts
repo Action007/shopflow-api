@@ -24,10 +24,6 @@ export class UploadService {
 
     constructor(private readonly prisma: PrismaService) {}
 
-    private getUploadRepository(tx?: Prisma.TransactionClient | PrismaService) {
-        return (tx ?? this.prisma).upload;
-    }
-
     async createImageUpload(params: {
         file: UploadedImageFile;
         uploadedById: string;
@@ -54,7 +50,7 @@ export class UploadService {
         tx?: Prisma.TransactionClient | PrismaService;
     }): Promise<StoredUpload> {
         const { uploadId, currentUserId, currentUserRole, tx } = params;
-        const uploadRepository = this.getUploadRepository(tx);
+        const uploadRepository = (tx ?? this.prisma).upload;
 
         const upload = await uploadRepository.findUnique({
             where: { id: uploadId },
@@ -104,14 +100,14 @@ export class UploadService {
         }
 
         if (upload.status !== UploadStatus.PENDING) {
-            throw new ForbiddenException(
+            throw new BadRequestException(
                 ServiceErrorMessage.ONLY_PENDING_UPLOADS_CAN_BE_DELETED,
             );
         }
 
-        await fs.rm(join(this.uploadDir, upload.fileName), { force: true });
         await this.prisma.upload.delete({
             where: { id: upload.id },
         });
+        await fs.rm(join(this.uploadDir, upload.fileName), { force: true });
     }
 }
