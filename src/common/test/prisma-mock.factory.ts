@@ -75,6 +75,12 @@ export const createMockPrismaService = () => ({
         delete: jest.fn(),
         deleteMany: jest.fn(),
     },
+    upload: {
+        create: jest.fn(),
+        findUnique: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+    },
     $transaction: jest.fn(),
     $queryRaw: jest.fn(),
 });

@@ -17,8 +17,8 @@ export class CreateProductDto {
     @IsString()
     description?: string;
 
-    @IsString()
-    imageUrl: string;
+    @IsUUID()
+    imageUploadId: string;
 
     @IsString()
     @Matches(/^\d+(\.\d{1,2})?$/, {

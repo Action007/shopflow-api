@@ -6,11 +6,13 @@ import {
     MockPrismaService,
 } from 'src/common/test/prisma-mock.factory';
 import { NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
+import { UploadService } from 'src/upload/upload.service';
 
 describe('ProductService', () => {
     let service: ProductService;
     let prisma: MockPrismaService;
+    let uploadService: { consumePendingUpload: jest.Mock };
 
     const mockCategory = {
         id: 'cat-1',
@@ -42,15 +44,21 @@ describe('ProductService', () => {
         price: '999.99',
         stockQuantity: 50,
         categoryId: 'cat-1',
+        imageUploadId: ""
     };
 
     beforeEach(async () => {
         prisma = createMockPrismaService();
+        prisma.$transaction.mockImplementation(async (callback) => callback(prisma));
+        uploadService = {
+            consumePendingUpload: jest.fn(),
+        };
 
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 ProductService,
                 { provide: PrismaService, useValue: prisma },
+                { provide: UploadService, useValue: uploadService },
             ],
         }).compile();
 
@@ -66,7 +74,11 @@ describe('ProductService', () => {
             prisma.category.findFirst.mockResolvedValue(mockCategory);
             prisma.product.create.mockResolvedValue(mockProduct);
 
-            const result = await service.create(createProductDto);
+            const result = await service.create(
+                createProductDto,
+                'admin-1',
+                Role.ADMIN,
+            );
 
             expect(result).toEqual(mockProduct);
             expect(prisma.category.findFirst).toHaveBeenCalledWith({
@@ -84,10 +96,44 @@ describe('ProductService', () => {
         it('should throw NotFoundException when category not found', async () => {
             prisma.category.findFirst.mockResolvedValue(null);
 
-            await expect(service.create(createProductDto)).rejects.toThrow(
-                NotFoundException,
-            );
+            await expect(
+                service.create(createProductDto, 'admin-1', Role.ADMIN),
+            ).rejects.toThrow(NotFoundException);
             expect(prisma.product.create).not.toHaveBeenCalled();
+        });
+
+        it('should use uploaded image when imageUploadId is provided', async () => {
+            prisma.category.findFirst.mockResolvedValue(mockCategory);
+            prisma.product.create.mockResolvedValue({
+                ...mockProduct,
+                imageUrl: 'http://localhost:3000/uploads/file.webp',
+            });
+            uploadService.consumePendingUpload.mockResolvedValue({
+                id: 'upload-1',
+                url: 'http://localhost:3000/uploads/file.webp',
+            });
+
+            await service.create(
+                {
+                    ...createProductDto,
+                    imageUploadId: 'upload-1',
+                },
+                'admin-1',
+                Role.ADMIN,
+            );
+
+            expect(uploadService.consumePendingUpload).toHaveBeenCalledWith({
+                uploadId: 'upload-1',
+                currentUserId: 'admin-1',
+                currentUserRole: Role.ADMIN,
+                tx: prisma,
+            });
+            expect(prisma.product.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({
+                    imageUrl: 'http://localhost:3000/uploads/file.webp',
+                }),
+                include: { category: true },
+            });
         });
     });
 
@@ -181,7 +227,12 @@ describe('ProductService', () => {
                 name: 'Updated',
             });
 
-            const result = await service.update('prod-1', { name: 'Updated' });
+            const result = await service.update(
+                'prod-1',
+                { name: 'Updated' },
+                'admin-1',
+                Role.ADMIN,
+            );
 
             expect(prisma.product.update).toHaveBeenCalledWith({
                 where: { id: 'prod-1' },
@@ -197,7 +248,12 @@ describe('ProductService', () => {
                 price: updatedPrice,
             });
 
-            await service.update('prod-1', { price: '1299.99' });
+            await service.update(
+                'prod-1',
+                { price: '1299.99' },
+                'admin-1',
+                Role.ADMIN,
+            );
 
             expect(prisma.product.update).toHaveBeenCalledWith({
                 where: { id: 'prod-1' },
@@ -207,11 +263,48 @@ describe('ProductService', () => {
             });
         });
 
+        it('should replace product image when a new upload is provided', async () => {
+            prisma.product.findFirst.mockResolvedValue(mockProduct);
+            prisma.product.update.mockResolvedValue({
+                ...mockProduct,
+                imageUrl: 'http://localhost:3000/uploads/updated.webp',
+            });
+            uploadService.consumePendingUpload.mockResolvedValue({
+                id: 'upload-2',
+                url: 'http://localhost:3000/uploads/updated.webp',
+            });
+
+            await service.update(
+                'prod-1',
+                { imageUploadId: 'upload-2' },
+                'admin-1',
+                Role.ADMIN,
+            );
+
+            expect(uploadService.consumePendingUpload).toHaveBeenCalledWith({
+                uploadId: 'upload-2',
+                currentUserId: 'admin-1',
+                currentUserRole: Role.ADMIN,
+                tx: prisma,
+            });
+            expect(prisma.product.update).toHaveBeenCalledWith({
+                where: { id: 'prod-1' },
+                data: expect.objectContaining({
+                    imageUrl: 'http://localhost:3000/uploads/updated.webp',
+                }),
+            });
+        });
+
         it('should throw NotFoundException when product not found', async () => {
             prisma.product.findFirst.mockResolvedValue(null);
 
             await expect(
-                service.update('nonexistent', { name: 'X' }),
+                service.update(
+                    'nonexistent',
+                    { name: 'X' },
+                    'admin-1',
+                    Role.ADMIN,
+                ),
             ).rejects.toThrow(NotFoundException);
         });
     });

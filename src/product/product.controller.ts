@@ -20,6 +20,7 @@ import { Roles } from 'src/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Public } from 'src/auth/decorators/public.decorator';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 
 @Controller('products')
 export class ProductController {
@@ -29,8 +30,11 @@ export class ProductController {
     @Roles(Role.ADMIN)
     @Post()
     @HttpCode(HttpStatus.CREATED)
-    create(@Body() dto: CreateProductDto) {
-        return this.productService.create(dto);
+    create(
+        @Body() dto: CreateProductDto,
+        @CurrentUser() user: { id: string; role: Role },
+    ) {
+        return this.productService.create(dto, user.id, user.role);
     }
 
     @Get()
@@ -51,8 +55,9 @@ export class ProductController {
     update(
         @Param('id', ParseUUIDPipe) id: string,
         @Body() dto: UpdateProductDto,
+        @CurrentUser() user: { id: string; role: Role },
     ) {
-        return this.productService.update(id, dto);
+        return this.productService.update(id, dto, user.id, user.role);
     }
 
     @UseGuards(RolesGuard)

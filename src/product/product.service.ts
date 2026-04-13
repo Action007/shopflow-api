@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, Product } from '@prisma/client';
+import { Prisma, Product, Role } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -7,30 +7,51 @@ import { ServiceErrorMessage } from 'src/common/constants/service-error-messages
 import { buildPaginationMeta } from 'src/common/utils/paginate';
 import { ProductQueryDto } from './dto/product-query.dto';
 import { PaginatedResult } from 'src/common/types/paginated-result.type';
+import { UploadService } from 'src/upload/upload.service';
 
 @Injectable()
 export class ProductService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly uploadService: UploadService,
+    ) {}
 
-    async create(dto: CreateProductDto): Promise<Product> {
-        const category = await this.prisma.category.findFirst({
-            where: { id: dto.categoryId, deletedAt: null },
-        });
+    async create(
+        dto: CreateProductDto,
+        currentUserId: string,
+        currentUserRole: Role,
+    ): Promise<Product> {
+        return this.prisma.$transaction(async (tx) => {
+            const category = await tx.category.findFirst({
+                where: { id: dto.categoryId, deletedAt: null },
+            });
 
-        if (!category) {
-            throw new NotFoundException(ServiceErrorMessage.CATEGORY_NOT_FOUND);
-        }
+            if (!category) {
+                throw new NotFoundException(
+                    ServiceErrorMessage.CATEGORY_NOT_FOUND,
+                );
+            }
 
-        return await this.prisma.product.create({
-            data: {
-                name: dto.name,
-                description: dto.description,
-                price: new Prisma.Decimal(dto.price),
-                stockQuantity: dto.stockQuantity,
-                categoryId: dto.categoryId,
-                imageUrl: dto.imageUrl
-            },
-            include: { category: true },
+            const upload = dto.imageUploadId
+                ? await this.uploadService.consumePendingUpload({
+                      uploadId: dto.imageUploadId,
+                      currentUserId,
+                      currentUserRole,
+                      tx,
+                  })
+                : null;
+
+            return tx.product.create({
+                data: {
+                    name: dto.name,
+                    description: dto.description,
+                    price: new Prisma.Decimal(dto.price),
+                    stockQuantity: dto.stockQuantity,
+                    categoryId: dto.categoryId,
+                    imageUrl: upload?.url ?? null,
+                },
+                include: { category: true },
+            });
         });
     }
 
@@ -108,23 +129,41 @@ export class ProductService {
         };
     }
 
-    async update(id: string, dto: UpdateProductDto): Promise<Product> {
-        const product = await this.prisma.product.findFirst({
-            where: { id, deletedAt: null },
-        });
+    async update(
+        id: string,
+        dto: UpdateProductDto,
+        currentUserId: string,
+        currentUserRole: Role,
+    ): Promise<Product> {
+        return this.prisma.$transaction(async (tx) => {
+            const product = await tx.product.findFirst({
+                where: { id, deletedAt: null },
+            });
 
-        if (!product) {
-            throw new NotFoundException(ServiceErrorMessage.PRODUCT_NOT_FOUND);
-        }
+            if (!product) {
+                throw new NotFoundException(
+                    ServiceErrorMessage.PRODUCT_NOT_FOUND,
+                );
+            }
 
-        const { price, ...rest } = dto;
+            const { price, imageUploadId, ...rest } = dto;
+            const upload = imageUploadId
+                ? await this.uploadService.consumePendingUpload({
+                      uploadId: imageUploadId,
+                      currentUserId,
+                      currentUserRole,
+                      tx,
+                  })
+                : null;
 
-        return await this.prisma.product.update({
-            where: { id },
-            data: {
-                ...rest,
-                ...(price && { price: new Prisma.Decimal(price) }),
-            },
+            return tx.product.update({
+                where: { id },
+                data: {
+                    ...rest,
+                    ...(price && { price: new Prisma.Decimal(price) }),
+                    ...(upload && { imageUrl: upload.url }),
+                },
+            });
         });
     }
 

@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     ForbiddenException,
     Injectable,
     NotFoundException,
@@ -22,6 +23,10 @@ export class UploadService {
 
     constructor(private readonly prisma: PrismaService) {}
 
+    private getUploadRepository(tx?: Prisma.TransactionClient | PrismaService) {
+        return (tx ?? this.prisma).upload;
+    }
+
     async createImageUpload(params: {
         file: UploadedImageFile;
         uploadedById: string;
@@ -38,6 +43,40 @@ export class UploadService {
                 url: publicUrl,
                 uploadedById,
             },
+        });
+    }
+
+    async consumePendingUpload(params: {
+        uploadId: string;
+        currentUserId: string;
+        currentUserRole: Role;
+        tx?: Prisma.TransactionClient | PrismaService;
+    }): Promise<StoredUpload> {
+        const { uploadId, currentUserId, currentUserRole, tx } = params;
+        const uploadRepository = this.getUploadRepository(tx);
+
+        const upload = await uploadRepository.findUnique({
+            where: { id: uploadId },
+        });
+
+        if (!upload) {
+            throw new NotFoundException('Upload not found');
+        }
+
+        if (
+            upload.uploadedById !== currentUserId &&
+            currentUserRole !== Role.ADMIN
+        ) {
+            throw new ForbiddenException();
+        }
+
+        if (upload.status !== UploadStatus.PENDING) {
+            throw new BadRequestException('Upload has already been used');
+        }
+
+        return uploadRepository.update({
+            where: { id: upload.id },
+            data: { status: UploadStatus.USED },
         });
     }
 
