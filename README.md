@@ -17,8 +17,10 @@ A production-oriented e-commerce REST API built with NestJS, Prisma, and Postgre
 - JWT authentication with refresh token rotation
 - Role-based access control (`ADMIN`, `CUSTOMER`)
 - Product catalog with categories
+- Upload-backed product and profile images
 - Pagination, sorting, filtering, and search
 - Shopping cart and order placement
+- Per-user wishlist with duplicate protection
 - Transactional stock deduction on order creation
 - Validated order status transitions
 - Soft delete support
@@ -136,6 +138,7 @@ Notes:
 Notes:
 
 - `GET /users` is paginated.
+- `PATCH /users/:id` accepts `imageUploadId` to attach a previously uploaded profile image.
 - `UpdateUserDto` does not allow password updates.
 - Password changes should be handled through a dedicated endpoint in the future.
 
@@ -165,6 +168,11 @@ Product query params:
 page, limit, sortBy, sortOrder, categoryId, minPrice, maxPrice, search
 ```
 
+Notes:
+
+- Product creation currently uses `imageUploadId` rather than raw `imageUrl`.
+- Product updates can also accept `imageUploadId` to replace the stored image.
+
 ### Cart
 
 | Method | Path | Auth | Description |
@@ -178,6 +186,41 @@ page, limit, sortBy, sortOrder, categoryId, minPrice, maxPrice, search
 Notes:
 
 - `clearCart` is idempotent.
+
+### Wishlist
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/v1/wishlist` | JWT | Get or create my wishlist |
+| POST | `/api/v1/wishlist` | JWT | Add a product to my wishlist |
+| DELETE | `/api/v1/wishlist/:productId` | JWT | Remove a product from my wishlist |
+
+Notes:
+
+- Each user has exactly one wishlist.
+- Duplicate wishlist entries are prevented at both service and database level.
+
+### Uploads
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/v1/uploads/images` | JWT | Upload a pending image for later use |
+| DELETE | `/api/v1/uploads/:id` | JWT (owner/admin) | Delete a pending upload |
+
+Notes:
+
+- Accepted image types: `jpeg`, `png`, `webp`
+- Max file size: `5MB`
+- Uploads start in `PENDING` status and become `USED` when attached to a product or user profile.
+- Static files are served from `/uploads/:fileName`.
+
+Example upload flow:
+
+```text
+1. POST /api/v1/uploads/images
+2. Take the returned upload id
+3. Send that id as imageUploadId when creating/updating a product or user profile
+```
 
 ### Orders
 
@@ -222,8 +265,10 @@ Stricter throttling is applied to auth endpoints to reduce abuse and brute-force
 | `JWT_SECRET` | Yes | — | JWT signing secret, minimum 32 characters |
 | `JWT_ACCESS_EXPIRATION` | No | `3600` | Access token TTL in seconds |
 | `JWT_REFRESH_EXPIRATION` | No | `604800` | Refresh token TTL in seconds |
+| `APP_BASE_URL` | Yes | — | Base URL used to build public upload URLs |
 | `PORT` | No | `3000` | App port |
 | `NODE_ENV` | No | `development` | Runtime environment |
+| `CORS_ORIGINS` | Yes | — | Comma-separated list of allowed frontend origins |
 | `DB_PASSWORD` | Docker only | `changeme` | Password used by local Docker Compose Postgres |
 
 ### `.env.example`
@@ -235,6 +280,8 @@ DATABASE_URL=postgresql://ecommerce_user:changeme@localhost:5432/ecommerce-nestj
 JWT_SECRET=your-secret-minimum-32-characters-long-here
 JWT_ACCESS_EXPIRATION=3600
 JWT_REFRESH_EXPIRATION=604800
+APP_BASE_URL=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 PORT=3000
 NODE_ENV=development
 ```
