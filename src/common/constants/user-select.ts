@@ -5,6 +5,7 @@ export const USER_SELECT = {
     firstName: true,
     lastName: true,
     email: true,
+    profileImageUrl: true,
     role: true,
     createdAt: true,
 } satisfies Prisma.UserSelect;

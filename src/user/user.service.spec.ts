@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { UploadService } from 'src/upload/upload.service';
 
 // Mock bcrypt so we don't actually hash in tests — fast + predictable
 jest.mock('bcrypt');
@@ -19,6 +20,7 @@ jest.mock('bcrypt');
 describe('UserService', () => {
     let service: UserService;
     let prisma: MockPrismaService;
+    let uploadService: { consumePendingUpload: jest.Mock };
 
     // Factory for a fake user object — reuse across tests
     const mockUser = {
@@ -27,6 +29,7 @@ describe('UserService', () => {
         lastName: 'Doe',
         email: 'john@example.com',
         password: 'hashed-password',
+        profileImageUrl: null,
         role: Role.CUSTOMER,
         deletedAt: null,
         createdAt: new Date(),
@@ -42,11 +45,16 @@ describe('UserService', () => {
 
     beforeEach(async () => {
         prisma = createMockPrismaService();
+        prisma.$transaction.mockImplementation(async (callback) => callback(prisma));
+        uploadService = {
+            consumePendingUpload: jest.fn(),
+        };
 
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 UserService,
                 { provide: PrismaService, useValue: prisma },
+                { provide: UploadService, useValue: uploadService },
             ],
         }).compile();
 
@@ -104,6 +112,7 @@ describe('UserService', () => {
                 firstName: 'John',
                 lastName: 'Doe',
                 email: 'john@example.com',
+                profileImageUrl: null,
                 role: Role.CUSTOMER,
                 createdAt: new Date(),
             };
@@ -157,6 +166,7 @@ describe('UserService', () => {
                     firstName: 'John',
                     lastName: 'Doe',
                     email: 'john@example.com',
+                    profileImageUrl: null,
                     role: Role.CUSTOMER,
                     createdAt: new Date(),
                 },
@@ -165,6 +175,7 @@ describe('UserService', () => {
                     firstName: 'Jane',
                     lastName: 'Smith',
                     email: 'jane@example.com',
+                    profileImageUrl: null,
                     role: Role.ADMIN,
                     createdAt: new Date(),
                 },
@@ -218,7 +229,7 @@ describe('UserService', () => {
                 firstName: 'AdminEdit',
             });
 
-            const result = await service.update(
+            await service.update(
                 'user-1',
                 { firstName: 'AdminEdit' },
                 'admin-id', // different user
@@ -226,6 +237,40 @@ describe('UserService', () => {
             );
 
             expect(prisma.user.update).toHaveBeenCalled();
+        });
+
+        it('should attach uploaded profile image when imageUploadId is provided', async () => {
+            prisma.user.findFirst.mockResolvedValue(mockUser);
+            prisma.user.update.mockResolvedValue({
+                ...mockUser,
+                profileImageUrl: 'http://localhost:3000/uploads/avatar.webp',
+            });
+            uploadService.consumePendingUpload.mockResolvedValue({
+                id: 'upload-1',
+                url: 'http://localhost:3000/uploads/avatar.webp',
+            });
+
+            await service.update(
+                'user-1',
+                { imageUploadId: 'upload-1' },
+                'user-1',
+                Role.CUSTOMER,
+            );
+
+            expect(uploadService.consumePendingUpload).toHaveBeenCalledWith({
+                uploadId: 'upload-1',
+                currentUserId: 'user-1',
+                currentUserRole: Role.CUSTOMER,
+                tx: prisma,
+            });
+            expect(prisma.user.update).toHaveBeenCalledWith({
+                where: { id: 'user-1' },
+                data: expect.objectContaining({
+                    profileImageUrl:
+                        'http://localhost:3000/uploads/avatar.webp',
+                }),
+                select: expect.objectContaining({ profileImageUrl: true }),
+            });
         });
 
         it('should throw ForbiddenException when non-owner non-admin', async () => {

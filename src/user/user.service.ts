@@ -12,14 +12,17 @@ import { Role, User } from '@prisma/client';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
 import { USER_SELECT } from 'src/common/constants/user-select';
 import { UserResponse } from './types/user-response.type';
-import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { PaginatedResult } from 'src/common/types/paginated-result.type';
 import { buildPaginationMeta } from 'src/common/utils/paginate';
 import { UserQueryDto } from './dto/user-query.dto';
+import { UploadService } from 'src/upload/upload.service';
 
 @Injectable()
 export class UserService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly uploadService: UploadService,
+    ) {}
 
     async create(dto: CreateUserDto): Promise<User> {
         const existingUser = await this.prisma.user.findFirst({
@@ -105,18 +108,33 @@ export class UserService {
         if (currentUserId !== id && currentUserRole !== Role.ADMIN) {
             throw new ForbiddenException();
         }
-        const user = await this.prisma.user.findFirst({
-            where: { id, deletedAt: null },
-        });
+        return this.prisma.$transaction(async (tx) => {
+            const user = await tx.user.findFirst({
+                where: { id, deletedAt: null },
+            });
 
-        if (!user) {
-            throw new NotFoundException(ServiceErrorMessage.USER_NOT_FOUND);
-        }
+            if (!user) {
+                throw new NotFoundException(ServiceErrorMessage.USER_NOT_FOUND);
+            }
 
-        return this.prisma.user.update({
-            where: { id },
-            data: { ...dto },
-            select: USER_SELECT,
+            const { imageUploadId, ...rest } = dto;
+            const upload = imageUploadId
+                ? await this.uploadService.consumePendingUpload({
+                      uploadId: imageUploadId,
+                      currentUserId,
+                      currentUserRole,
+                      tx,
+                  })
+                : null;
+
+            return tx.user.update({
+                where: { id },
+                data: {
+                    ...rest,
+                    ...(upload && { profileImageUrl: upload.url }),
+                },
+                select: USER_SELECT,
+            });
         });
     }
 
