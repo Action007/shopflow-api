@@ -27,6 +27,10 @@ class EnvironmentVariables {
     @MinLength(32, { message: 'JWT_SECRET must be at least 32 characters' })
     JWT_SECRET: string;
 
+    @IsString()
+    @IsNotEmpty()
+    APP_BASE_URL: string;
+
     @IsInt()
     @Min(60)
     JWT_ACCESS_EXPIRATION: number = 3600;

@@ -15,6 +15,7 @@ import { HealthModule } from './health/health.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
 import { validate } from './config/env.validation';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
     imports: [
@@ -26,6 +27,7 @@ import { validate } from './config/env.validation';
         CartModule,
         OrderModule,
         HealthModule,
+        UploadModule,
         ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
         ConfigModule.forRoot({
             isGlobal: true,

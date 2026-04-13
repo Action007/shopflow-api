@@ -18,6 +18,7 @@ model User {
     createdAt     DateTime       @default(now()) @map("created_at")
     updatedAt     DateTime       @updatedAt @map("updated_at")
     refreshTokens RefreshToken[]
+    uploads       Upload[]
     cart          Cart?
     orders        Order[]
 
@@ -139,10 +140,34 @@ model OrderItem {
     @@map("order_items")
 }
 
+model Upload {
+    id           String       @id @default(uuid())
+    originalName String       @map("original_name")
+    fileName     String       @unique @map("file_name")
+    mimeType     String       @map("mime_type")
+    size         Int
+    url          String
+    status       UploadStatus @default(PENDING)
+    uploadedById String       @map("uploaded_by_id")
+    createdAt    DateTime     @default(now()) @map("created_at")
+    updatedAt    DateTime     @updatedAt @map("updated_at")
+
+    uploadedBy User @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+    @@index([uploadedById])
+    @@index([status])
+    @@map("uploads")
+}
+
 enum OrderStatus {
     PENDING
     PROCESSING
     SHIPPED
     DELIVERED
     CANCELLED
+}
+
+enum UploadStatus {
+    PENDING
+    USED
 }

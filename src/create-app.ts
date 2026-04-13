@@ -4,6 +4,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
+import express from 'express';
+import { join } from 'path';
 
 export async function configureApp(
     app: INestApplication,
@@ -14,6 +16,7 @@ export async function configureApp(
     app.use(helmet());
     app.use(compression());
     app.use(cookieParser());
+    app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
     const allowedOrigins = configService
         .getOrThrow<string>('CORS_ORIGINS')
         .split(',')
