@@ -38,6 +38,10 @@ class EnvironmentVariables {
     @IsInt()
     @Min(1)
     PORT: number = 3000;
+
+    @IsString()
+    @IsNotEmpty()
+    CORS_ORIGINS: string;
 }
 
 export function validate(config: Record<string, unknown>) {

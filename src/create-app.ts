@@ -1,4 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -7,13 +8,27 @@ import cookieParser from 'cookie-parser';
 export async function configureApp(
     app: INestApplication,
 ): Promise<INestApplication> {
+    const configService = app.get(ConfigService);
     app.setGlobalPrefix('api/v1');
 
     app.use(helmet());
     app.use(compression());
     app.use(cookieParser());
+    const allowedOrigins = configService
+        .getOrThrow<string>('CORS_ORIGINS')
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean);
+
     app.enableCors({
-        origin: '*',
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+                return;
+            }
+
+            callback(new Error(`Origin ${origin} is not allowed by CORS`));
+        },
         credentials: true,
     });
 
