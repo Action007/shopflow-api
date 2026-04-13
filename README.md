@@ -1,4 +1,4 @@
-# E-Commerce NestJS API
+# Shopflow API
 
 A production-oriented e-commerce REST API built with NestJS, Prisma, and PostgreSQL.
 
@@ -40,7 +40,7 @@ A production-oriented e-commerce REST API built with NestJS, Prisma, and Postgre
 
 ```bash
 git clone https://github.com/your-username/ecommerce-nestjs-api.git
-cd ecommerce-nestjs-api
+cd shopflow-api
 npm install
 cp .env.example .env
 ```
@@ -58,6 +58,7 @@ Useful URLs:
 - API: `http://localhost:3000/api/v1`
 - Swagger: `http://localhost:3000/api/docs`
 - Health: `http://localhost:3000/api/v1/health`
+- Uploaded files: `http://localhost:3000/uploads/<file-name>`
 
 ## Docker
 
@@ -99,10 +100,34 @@ Swagger is enabled by default.
 - Swagger UI: `/api/docs`
 
 It is useful for:
+
 - browsing endpoints
 - trying requests manually
 - checking DTO schemas
 - sharing API docs with frontend or QA
+
+## Response Format
+
+Most endpoints return a global wrapper:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-13T12:00:00.000Z"
+}
+```
+
+Exception:
+
+- `GET /api/v1/health` returns the raw Terminus health payload without the wrapper.
+
+## Authentication Notes
+
+- Protected routes require `Authorization: Bearer <accessToken>`.
+- `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, and `POST /api/v1/auth/refresh` return both `accessToken` and `refreshToken`.
+- `POST /api/v1/auth/refresh` reads the refresh token from the `refresh_token` cookie.
+- Auth endpoints are rate-limited.
 
 ## API Overview
 
@@ -116,21 +141,17 @@ It is useful for:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/v1/auth/register` | None | Register new user |
+| POST | `/api/v1/auth/register` | None | Register a new user |
 | POST | `/api/v1/auth/login` | None | Login with email and password |
-| POST | `/api/v1/auth/refresh` | None | Refresh token pair |
-| POST | `/api/v1/auth/logout` | JWT | Logout and revoke refresh tokens |
-
-Notes:
-
-- Auth endpoints are rate-limited.
-- Passwords must meet complexity requirements.
+| POST | `/api/v1/auth/refresh` | None | Rotate refresh token and issue a new token pair |
+| POST | `/api/v1/auth/logout` | JWT | Revoke all refresh tokens for the current user |
 
 ### Users
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/v1/users/me` | JWT | Get current user |
+| PATCH | `/api/v1/users/me/password` | JWT | Change the current user's password |
 | GET | `/api/v1/users` | JWT + ADMIN | Get paginated user list |
 | PATCH | `/api/v1/users/:id` | JWT (owner/admin) | Update user profile |
 | DELETE | `/api/v1/users/:id` | JWT + ADMIN | Soft delete user |
@@ -138,15 +159,17 @@ Notes:
 Notes:
 
 - `GET /users` is paginated.
+- `PATCH /users/:id` is for profile fields only: `firstName`, `lastName`, and optional `imageUploadId`.
+- `PATCH /users/:id` does not allow `email` or `password` updates.
+- `PATCH /users/me/password` requires `currentPassword` and `newPassword`.
+- Successful password changes revoke all refresh tokens for that user, so existing sessions must log in again.
 - `PATCH /users/:id` accepts `imageUploadId` to attach a previously uploaded profile image.
-- `UpdateUserDto` does not allow password updates.
-- Password changes should be handled through a dedicated endpoint in the future.
 
 ### Categories
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/v1/categories` | None | List root categories |
+| GET | `/api/v1/categories` | None | List categories |
 | GET | `/api/v1/categories/:id` | None | Get category by ID |
 | POST | `/api/v1/categories` | JWT + ADMIN | Create category |
 | PATCH | `/api/v1/categories/:id` | JWT + ADMIN | Update category |
@@ -170,8 +193,9 @@ page, limit, sortBy, sortOrder, categoryId, minPrice, maxPrice, search
 
 Notes:
 
-- Product creation currently uses `imageUploadId` rather than raw `imageUrl`.
+- Product creation requires `imageUploadId` instead of a raw `imageUrl`.
 - Product updates can also accept `imageUploadId` to replace the stored image.
+- Price fields are sent as decimal strings such as `"29.99"`.
 
 ### Cart
 
@@ -199,6 +223,7 @@ Notes:
 
 - Each user has exactly one wishlist.
 - Duplicate wishlist entries are prevented at both service and database level.
+- `POST /wishlist` expects a JSON body with `productId`.
 
 ### Uploads
 
@@ -209,15 +234,17 @@ Notes:
 
 Notes:
 
-- Accepted image types: `jpeg`, `png`, `webp`
+- `POST /uploads/images` expects `multipart/form-data` with a `file` field.
+- Accepted image types: `image/jpeg`, `image/png`, `image/webp`
 - Max file size: `5MB`
 - Uploads start in `PENDING` status and become `USED` when attached to a product or user profile.
+- Only `PENDING` uploads can be deleted directly.
 - Static files are served from `/uploads/:fileName`.
 
 Example upload flow:
 
 ```text
-1. POST /api/v1/uploads/images
+1. POST /api/v1/uploads/images with multipart/form-data and the file field name "file"
 2. Take the returned upload id
 3. Send that id as imageUploadId when creating/updating a product or user profile
 ```
@@ -248,6 +275,12 @@ Passwords must:
 - contain at least 1 lowercase letter
 - contain at least 1 number
 - contain at least 1 special character from `!@#$%^&*`
+
+Password-changing endpoints:
+
+- `POST /api/v1/auth/register` validates the initial password.
+- `PATCH /api/v1/users/me/password` requires the correct current password.
+- `PATCH /api/v1/users/me/password` rejects reusing the current password.
 
 ### UUID Validation
 

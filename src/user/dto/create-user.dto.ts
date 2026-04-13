@@ -7,6 +7,7 @@ import {
     MaxLength,
     MinLength,
 } from 'class-validator';
+import { ValidationMessage } from 'src/common/constants/validation-messages';
 
 export class CreateUserDto {
         @IsString()
@@ -25,9 +26,8 @@ export class CreateUserDto {
         @IsString()
         @MinLength(8)
         @MaxLength(128)
-        @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/, {
-            message:
-                'password must contain at least 1 uppercase, 1 lowercase, 1 number, and 1 special character',
+        @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
+            message: ValidationMessage.PASSWORD_COMPLEXITY,
         })
         password: string;
 }

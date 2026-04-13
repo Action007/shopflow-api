@@ -6,13 +6,16 @@ import {
     MockPrismaService,
 } from 'src/common/test/prisma-mock.factory';
 import {
+    BadRequestException,
     ConflictException,
     ForbiddenException,
     NotFoundException,
+    UnauthorizedException,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { UploadService } from 'src/upload/upload.service';
+import { Security } from 'src/common/constants/security';
 
 // Mock bcrypt so we don't actually hash in tests — fast + predictable
 jest.mock('bcrypt');
@@ -79,7 +82,10 @@ describe('UserService', () => {
             expect(prisma.user.findFirst).toHaveBeenCalledWith({
                 where: { email: 'john@example.com', deletedAt: null },
             });
-            expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10);
+            expect(bcrypt.hash).toHaveBeenCalledWith(
+                'password123',
+                Security.BCRYPT_SALT_ROUNDS,
+            );
             expect(prisma.user.create).toHaveBeenCalledWith({
                 data: {
                     firstName: 'John',
@@ -273,6 +279,32 @@ describe('UserService', () => {
             });
         });
 
+        it('should ignore email updates even if email is passed directly to the service', async () => {
+            prisma.user.findFirst.mockResolvedValue(mockUser);
+            prisma.user.update.mockResolvedValue({
+                ...mockUser,
+                firstName: 'Updated',
+            });
+
+            await service.update(
+                'user-1',
+                {
+                    firstName: 'Updated',
+                    email: 'new@example.com',
+                } as any,
+                'user-1',
+                Role.CUSTOMER,
+            );
+
+            expect(prisma.user.update).toHaveBeenCalledWith({
+                where: { id: 'user-1' },
+                data: {
+                    firstName: 'Updated',
+                },
+                select: expect.any(Object),
+            });
+        });
+
         it('should throw ForbiddenException when non-owner non-admin', async () => {
             await expect(
                 service.update(
@@ -297,6 +329,93 @@ describe('UserService', () => {
                     Role.CUSTOMER,
                 ),
             ).rejects.toThrow(NotFoundException);
+        });
+    });
+
+    describe('changeOwnPassword', () => {
+        it('should change password and revoke refresh tokens', async () => {
+            prisma.user.findFirst.mockResolvedValue(mockUser);
+            prisma.user.update.mockResolvedValue({
+                ...mockUser,
+                password: 'new-hashed-password',
+            });
+            prisma.refreshToken.deleteMany.mockResolvedValue({ count: 2 });
+            (bcrypt.compare as jest.Mock)
+                .mockResolvedValueOnce(true)
+                .mockResolvedValueOnce(false);
+            (bcrypt.hash as jest.Mock).mockResolvedValue('new-hashed-password');
+
+            await service.changeOwnPassword('user-1', {
+                currentPassword: 'Current123!',
+                newPassword: 'NewPassword123!',
+            });
+
+            expect(bcrypt.compare).toHaveBeenNthCalledWith(
+                1,
+                'Current123!',
+                'hashed-password',
+            );
+            expect(bcrypt.compare).toHaveBeenNthCalledWith(
+                2,
+                'NewPassword123!',
+                'hashed-password',
+            );
+            expect(bcrypt.hash).toHaveBeenCalledWith(
+                'NewPassword123!',
+                Security.BCRYPT_SALT_ROUNDS,
+            );
+            expect(prisma.user.update).toHaveBeenCalledWith({
+                where: { id: 'user-1' },
+                data: { password: 'new-hashed-password' },
+            });
+            expect(prisma.refreshToken.deleteMany).toHaveBeenCalledWith({
+                where: { userId: 'user-1' },
+            });
+        });
+
+        it('should throw NotFoundException when user does not exist', async () => {
+            prisma.user.findFirst.mockResolvedValue(null);
+
+            await expect(
+                service.changeOwnPassword('missing-user', {
+                    currentPassword: 'Current123!',
+                    newPassword: 'NewPassword123!',
+                }),
+            ).rejects.toThrow(NotFoundException);
+
+            expect(bcrypt.compare).not.toHaveBeenCalled();
+        });
+
+        it('should throw UnauthorizedException when current password is incorrect', async () => {
+            prisma.user.findFirst.mockResolvedValue(mockUser);
+            (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+            await expect(
+                service.changeOwnPassword('user-1', {
+                    currentPassword: 'Wrong123!',
+                    newPassword: 'NewPassword123!',
+                }),
+            ).rejects.toThrow(UnauthorizedException);
+
+            expect(prisma.user.update).not.toHaveBeenCalled();
+            expect(prisma.refreshToken.deleteMany).not.toHaveBeenCalled();
+        });
+
+        it('should throw BadRequestException when new password matches current password', async () => {
+            prisma.user.findFirst.mockResolvedValue(mockUser);
+            (bcrypt.compare as jest.Mock)
+                .mockResolvedValueOnce(true)
+                .mockResolvedValueOnce(true);
+
+            await expect(
+                service.changeOwnPassword('user-1', {
+                    currentPassword: 'Current123!',
+                    newPassword: 'Current123!',
+                }),
+            ).rejects.toThrow(BadRequestException);
+
+            expect(bcrypt.hash).not.toHaveBeenCalled();
+            expect(prisma.user.update).not.toHaveBeenCalled();
         });
     });
 

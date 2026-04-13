@@ -22,6 +22,7 @@ import { extname } from 'path';
 import { mkdirSync } from 'fs';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
+import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
 
 const uploadPath = 'uploads';
 const allowedMimeTypes = new Set([
@@ -77,7 +78,9 @@ export class UploadController {
         @CurrentUser() user: { id: string },
     ) {
         if (!file) {
-            throw new BadRequestException('Image file is required');
+            throw new BadRequestException(
+                ServiceErrorMessage.IMAGE_FILE_REQUIRED,
+            );
         }
 
         const publicUrl = `${this.configService.getOrThrow<string>('APP_BASE_URL')}/uploads/${file.filename}`;

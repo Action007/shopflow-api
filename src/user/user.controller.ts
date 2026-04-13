@@ -16,6 +16,7 @@ import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Role } from '@prisma/client';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { UserQueryDto } from './dto/user-query.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('users')
 export class UserController {
@@ -24,6 +25,14 @@ export class UserController {
     @Get('me')
     getMe(@CurrentUser() user) {
         return this.userService.findById(user.id);
+    }
+
+    @Patch('me/password')
+    async changePassword(
+        @Body() dto: ChangePasswordDto,
+        @CurrentUser() user: { id: string },
+    ): Promise<void> {
+        await this.userService.changeOwnPassword(user.id, dto);
     }
 
     @UseGuards(RolesGuard)

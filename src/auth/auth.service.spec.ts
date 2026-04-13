@@ -31,6 +31,7 @@ describe('AuthService', () => {
         lastName: 'Doe',
         email: 'john@example.com',
         password: 'hashed-password',
+        profileImageUrl: null,
         role: Role.CUSTOMER,
         deletedAt: null,
         createdAt: new Date(),

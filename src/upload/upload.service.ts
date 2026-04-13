@@ -4,6 +4,7 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
+import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, UploadStatus, Role } from '@prisma/client';
 import { promises as fs } from 'fs';
@@ -60,7 +61,7 @@ export class UploadService {
         });
 
         if (!upload) {
-            throw new NotFoundException('Upload not found');
+            throw new NotFoundException(ServiceErrorMessage.UPLOAD_NOT_FOUND);
         }
 
         if (
@@ -71,7 +72,9 @@ export class UploadService {
         }
 
         if (upload.status !== UploadStatus.PENDING) {
-            throw new BadRequestException('Upload has already been used');
+            throw new BadRequestException(
+                ServiceErrorMessage.UPLOAD_ALREADY_USED,
+            );
         }
 
         return uploadRepository.update({
@@ -90,7 +93,7 @@ export class UploadService {
         });
 
         if (!upload) {
-            throw new NotFoundException('Upload not found');
+            throw new NotFoundException(ServiceErrorMessage.UPLOAD_NOT_FOUND);
         }
 
         if (
@@ -102,7 +105,7 @@ export class UploadService {
 
         if (upload.status !== UploadStatus.PENDING) {
             throw new ForbiddenException(
-                'Only pending uploads can be deleted directly',
+                ServiceErrorMessage.ONLY_PENDING_UPLOADS_CAN_BE_DELETED,
             );
         }
 

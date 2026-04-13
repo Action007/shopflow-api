@@ -1,8 +1,10 @@
 import {
+    BadRequestException,
     ConflictException,
     ForbiddenException,
     Injectable,
     NotFoundException,
+    UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -10,12 +12,14 @@ import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Role, User } from '@prisma/client';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
+import { Security } from 'src/common/constants/security';
 import { USER_SELECT } from 'src/common/constants/user-select';
 import { UserResponse } from './types/user-response.type';
 import { PaginatedResult } from 'src/common/types/paginated-result.type';
 import { buildPaginationMeta } from 'src/common/utils/paginate';
 import { UserQueryDto } from './dto/user-query.dto';
 import { UploadService } from 'src/upload/upload.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class UserService {
@@ -33,7 +37,10 @@ export class UserService {
             throw new ConflictException(ServiceErrorMessage.EMAIL_EXISTS);
         }
 
-        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        const hashedPassword = await bcrypt.hash(
+            dto.password,
+            Security.BCRYPT_SALT_ROUNDS,
+        );
 
         return this.prisma.user.create({
             data: {
@@ -117,7 +124,7 @@ export class UserService {
                 throw new NotFoundException(ServiceErrorMessage.USER_NOT_FOUND);
             }
 
-            const { imageUploadId, ...rest } = dto;
+            const { firstName, lastName, imageUploadId } = dto;
             const upload = imageUploadId
                 ? await this.uploadService.consumePendingUpload({
                       uploadId: imageUploadId,
@@ -130,10 +137,62 @@ export class UserService {
             return tx.user.update({
                 where: { id },
                 data: {
-                    ...rest,
+                    ...(firstName !== undefined && { firstName }),
+                    ...(lastName !== undefined && { lastName }),
                     ...(upload && { profileImageUrl: upload.url }),
                 },
                 select: USER_SELECT,
+            });
+        });
+    }
+
+    async changeOwnPassword(
+        currentUserId: string,
+        dto: ChangePasswordDto,
+    ): Promise<void> {
+        await this.prisma.$transaction(async (tx) => {
+            const user = await tx.user.findFirst({
+                where: { id: currentUserId, deletedAt: null },
+            });
+
+            if (!user) {
+                throw new NotFoundException(ServiceErrorMessage.USER_NOT_FOUND);
+            }
+
+            const isCurrentPasswordValid = await bcrypt.compare(
+                dto.currentPassword,
+                user.password,
+            );
+
+            if (!isCurrentPasswordValid) {
+                throw new UnauthorizedException(
+                    ServiceErrorMessage.INVALID_CURRENT_PASSWORD,
+                );
+            }
+
+            const isSamePassword = await bcrypt.compare(
+                dto.newPassword,
+                user.password,
+            );
+
+            if (isSamePassword) {
+                throw new BadRequestException(
+                    ServiceErrorMessage.PASSWORD_MUST_BE_DIFFERENT,
+                );
+            }
+
+            const hashedPassword = await bcrypt.hash(
+                dto.newPassword,
+                Security.BCRYPT_SALT_ROUNDS,
+            );
+
+            await tx.user.update({
+                where: { id: currentUserId },
+                data: { password: hashedPassword },
+            });
+
+            await tx.refreshToken.deleteMany({
+                where: { userId: currentUserId },
             });
         });
     }

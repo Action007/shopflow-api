@@ -1,12 +1,20 @@
 export const ServiceErrorMessage = {
     USER_NOT_FOUND: 'User not found',
     EMAIL_EXISTS: 'Email already exists',
+    INVALID_CURRENT_PASSWORD: 'Current password is incorrect',
+    PASSWORD_MUST_BE_DIFFERENT:
+        'New password must be different from current password',
     CATEGORY_NOT_FOUND: 'Category not found',
     PARENT_CATEGORY_NOT_FOUND: 'Parent category not found',
     CATEGORY_SELF_PARENT: 'Category cannot be its own parent',
     PRODUCT_NOT_FOUND: 'Product not found',
     INVALID_CREDENTIALS: 'Invalid credentials',
     REFRESH_TOKEN_NOT_FOUND: 'Refresh token not found',
+    UPLOAD_NOT_FOUND: 'Upload not found',
+    UPLOAD_ALREADY_USED: 'Upload has already been used',
+    ONLY_PENDING_UPLOADS_CAN_BE_DELETED:
+        'Only pending uploads can be deleted directly',
+    IMAGE_FILE_REQUIRED: 'Image file is required',
     INSUFFICIENT_STOCK: (name: string) => `Insufficient stock for ${name}`,
     INVALID_QUANTITY: "Invalid quantity",
     ITEM_NOT_IN_CART: "Item not in cart",
