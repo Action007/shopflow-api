@@ -237,6 +237,7 @@ describe('ProductService', () => {
             expect(prisma.product.update).toHaveBeenCalledWith({
                 where: { id: 'prod-1' },
                 data: { name: 'Updated' },
+                include: { category: true },
             });
         });
 
@@ -260,6 +261,7 @@ describe('ProductService', () => {
                 data: expect.objectContaining({
                     price: expect.any(Prisma.Decimal),
                 }),
+                include: { category: true },
             });
         });
 
@@ -292,6 +294,7 @@ describe('ProductService', () => {
                 data: expect.objectContaining({
                     imageUrl: 'http://localhost:3000/uploads/updated.webp',
                 }),
+                include: { category: true },
             });
         });
 

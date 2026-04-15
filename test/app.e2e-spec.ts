@@ -255,8 +255,10 @@ describe('E-Commerce API (e2e)', () => {
         let categoryId: string;
 
         beforeAll(async () => {
-            const cat = await prisma.category.create({
-                data: { name: 'Electronics' },
+            const cat = await prisma.category.upsert({
+                where: { name: 'Electronics' },
+                update: {},
+                create: { name: 'Electronics' },
             });
             categoryId = cat.id;
         });
@@ -411,6 +413,48 @@ describe('E-Commerce API (e2e)', () => {
                 .expect(200);
 
             expect(res.body.data.profileImageUrl).toBe(uploadRes.body.data.url);
+
+            const storedUpload = await prisma.upload.findUnique({
+                where: { id: uploadRes.body.data.id },
+            });
+            expect(storedUpload?.status).toBe(UploadStatus.USED);
+        });
+
+        it('PATCH /products/:id — updates product image and GET /products/:id returns the new imageUrl', async () => {
+            const category = await prisma.category.create({
+                data: { name: 'Patch Product Category' },
+            });
+            const product = await prisma.product.create({
+                data: {
+                    name: 'Patchable Product',
+                    price: 89.99,
+                    stockQuantity: 4,
+                    categoryId: category.id,
+                    imageUrl: null,
+                },
+            });
+            const uploadRes = await uploadTestImage(
+                adminToken,
+                'updated-product.png',
+            ).expect(201);
+
+            const patchRes = await request(app.getHttpServer())
+                .patch(`/api/v1/products/${product.id}`)
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({ imageUploadId: uploadRes.body.data.id })
+                .expect(200);
+
+            expect(patchRes.body.success).toBe(true);
+            expect(patchRes.body.data.imageUrl).toBe(uploadRes.body.data.url);
+            expect(patchRes.body.data.category.id).toBe(category.id);
+
+            const getRes = await request(app.getHttpServer())
+                .get(`/api/v1/products/${product.id}`)
+                .expect(200);
+
+            expect(getRes.body.success).toBe(true);
+            expect(getRes.body.data.imageUrl).toBe(uploadRes.body.data.url);
+            expect(getRes.body.data.category.id).toBe(category.id);
 
             const storedUpload = await prisma.upload.findUnique({
                 where: { id: uploadRes.body.data.id },

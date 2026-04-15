@@ -163,6 +163,7 @@ export class ProductService {
                     ...(price && { price: new Prisma.Decimal(price) }),
                     ...(upload && { imageUrl: upload.url }),
                 },
+                include: { category: true },
             });
         });
     }
