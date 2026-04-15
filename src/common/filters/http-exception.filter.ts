@@ -19,6 +19,7 @@ import {
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
     private readonly logger = new Logger(HttpExceptionFilter.name);
+    private readonly isDevelopment = process.env.NODE_ENV === 'development';
 
     catch(exception: unknown, host: ArgumentsHost) {
         const ctx = host.switchToHttp();
@@ -131,6 +132,34 @@ export class HttpExceptionFilter implements ExceptionFilter {
             return;
         }
 
+        if (this.shouldSkipWarnLog(request, statusCode)) {
+            return;
+        }
+
         this.logger.warn(`${context} | ${message}`);
+    }
+
+    private shouldSkipWarnLog(request: Request, statusCode: number): boolean {
+        return (
+            this.isDevelopment &&
+            statusCode === HttpStatus.NOT_FOUND &&
+            this.isLocalRequest(request)
+        );
+    }
+
+    private isLocalRequest(request: Request): boolean {
+        const candidates = [
+            request.hostname,
+            request.ip,
+            request.headers.host,
+            request.headers.origin,
+            request.headers.referer,
+        ].filter((value): value is string => Boolean(value));
+
+        return candidates.some((value) =>
+            ['localhost', '127.0.0.1', '::1'].some((localHost) =>
+                value.toLowerCase().includes(localHost),
+            ),
+        );
     }
 }

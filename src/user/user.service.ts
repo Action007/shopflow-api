@@ -115,7 +115,8 @@ export class UserService {
         if (currentUserId !== id && currentUserRole !== Role.ADMIN) {
             throw new ForbiddenException();
         }
-        return this.prisma.$transaction(async (tx) => {
+        const { updatedUser, previousImageUrl } = await this.prisma.$transaction(
+            async (tx) => {
             const user = await tx.user.findFirst({
                 where: { id, deletedAt: null },
             });
@@ -134,16 +135,32 @@ export class UserService {
                   })
                 : null;
 
-            return tx.user.update({
-                where: { id },
-                data: {
-                    ...(firstName !== undefined && { firstName }),
-                    ...(lastName !== undefined && { lastName }),
-                    ...(upload && { profileImageUrl: upload.url }),
-                },
-                select: USER_SELECT,
-            });
-        });
+                const updatedUser = await tx.user.update({
+                    where: { id },
+                    data: {
+                        ...(firstName !== undefined && { firstName }),
+                        ...(lastName !== undefined && { lastName }),
+                        ...(upload && { profileImageUrl: upload.url }),
+                    },
+                    select: USER_SELECT,
+                });
+
+                return {
+                    updatedUser,
+                    previousImageUrl: user.profileImageUrl,
+                };
+            },
+        );
+
+        if (
+            dto.imageUploadId &&
+            previousImageUrl &&
+            previousImageUrl !== updatedUser.profileImageUrl
+        ) {
+            await this.uploadService.removeStoredFileByUrl(previousImageUrl);
+        }
+
+        return updatedUser;
     }
 
     async changeOwnPassword(

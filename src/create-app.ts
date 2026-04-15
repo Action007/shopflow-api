@@ -16,7 +16,18 @@ export async function configureApp(
     app.use(helmet());
     app.use(compression());
     app.use(cookieParser());
-    app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+    app.use(
+        '/uploads',
+        express.static(join(process.cwd(), 'uploads'), {
+            setHeaders: (res) => {
+                res.setHeader(
+                    'Cross-Origin-Resource-Policy',
+                    'cross-origin',
+                );
+                res.setHeader('Access-Control-Allow-Origin', '*');
+            },
+        }),
+    );
     const allowedOrigins = configService
         .getOrThrow<string>('CORS_ORIGINS')
         .split(',')

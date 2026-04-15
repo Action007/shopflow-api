@@ -12,7 +12,10 @@ import { UploadService } from 'src/upload/upload.service';
 describe('ProductService', () => {
     let service: ProductService;
     let prisma: MockPrismaService;
-    let uploadService: { consumePendingUpload: jest.Mock };
+    let uploadService: {
+        consumePendingUpload: jest.Mock;
+        removeStoredFileByUrl: jest.Mock;
+    };
 
     const mockCategory = {
         id: 'cat-1',
@@ -44,7 +47,7 @@ describe('ProductService', () => {
         price: '999.99',
         stockQuantity: 50,
         categoryId: 'cat-1',
-        imageUploadId: ""
+        imageUploadId: '',
     };
 
     beforeEach(async () => {
@@ -52,6 +55,7 @@ describe('ProductService', () => {
         prisma.$transaction.mockImplementation(async (callback) => callback(prisma));
         uploadService = {
             consumePendingUpload: jest.fn(),
+            removeStoredFileByUrl: jest.fn(),
         };
 
         const module: TestingModule = await Test.createTestingModule({
@@ -266,7 +270,10 @@ describe('ProductService', () => {
         });
 
         it('should replace product image when a new upload is provided', async () => {
-            prisma.product.findFirst.mockResolvedValue(mockProduct);
+            prisma.product.findFirst.mockResolvedValue({
+                ...mockProduct,
+                imageUrl: 'http://localhost:3000/uploads/old.webp',
+            });
             prisma.product.update.mockResolvedValue({
                 ...mockProduct,
                 imageUrl: 'http://localhost:3000/uploads/updated.webp',
@@ -296,6 +303,9 @@ describe('ProductService', () => {
                 }),
                 include: { category: true },
             });
+            expect(uploadService.removeStoredFileByUrl).toHaveBeenCalledWith(
+                'http://localhost:3000/uploads/old.webp',
+            );
         });
 
         it('should throw NotFoundException when product not found', async () => {
@@ -316,7 +326,10 @@ describe('ProductService', () => {
 
     describe('remove', () => {
         it('should soft delete product', async () => {
-            prisma.product.findFirst.mockResolvedValue(mockProduct);
+            prisma.product.findFirst.mockResolvedValue({
+                ...mockProduct,
+                imageUrl: 'http://localhost:3000/uploads/product.webp',
+            });
             prisma.product.update.mockResolvedValue({
                 ...mockProduct,
                 deletedAt: new Date(),
@@ -328,6 +341,9 @@ describe('ProductService', () => {
                 where: { id: 'prod-1' },
                 data: { deletedAt: expect.any(Date) },
             });
+            expect(uploadService.removeStoredFileByUrl).toHaveBeenCalledWith(
+                'http://localhost:3000/uploads/product.webp',
+            );
         });
 
         it('should throw NotFoundException when product not found', async () => {

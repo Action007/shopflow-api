@@ -8,7 +8,7 @@ import { ServiceErrorMessage } from 'src/common/constants/service-error-messages
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, UploadStatus, Role } from '@prisma/client';
 import { promises as fs } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 
 type StoredUpload = Prisma.UploadGetPayload<Record<string, never>>;
 type UploadedImageFile = {
@@ -109,5 +109,34 @@ export class UploadService {
             where: { id: upload.id },
         });
         await fs.rm(join(this.uploadDir, upload.fileName), { force: true });
+    }
+
+    async removeStoredFileByUrl(fileUrl?: string | null): Promise<void> {
+        const fileName = this.getStoredFileName(fileUrl);
+
+        if (!fileName) {
+            return;
+        }
+
+        await fs.rm(join(this.uploadDir, fileName), { force: true });
+    }
+
+    private getStoredFileName(fileUrl?: string | null): string | null {
+        if (!fileUrl) {
+            return null;
+        }
+
+        try {
+            const parsedUrl = new URL(fileUrl, 'http://localhost');
+
+            if (!parsedUrl.pathname.startsWith('/uploads/')) {
+                return null;
+            }
+
+            const fileName = basename(parsedUrl.pathname);
+            return fileName ? fileName : null;
+        } catch {
+            return null;
+        }
     }
 }

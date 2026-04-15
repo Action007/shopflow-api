@@ -23,7 +23,10 @@ jest.mock('bcrypt');
 describe('UserService', () => {
     let service: UserService;
     let prisma: MockPrismaService;
-    let uploadService: { consumePendingUpload: jest.Mock };
+    let uploadService: {
+        consumePendingUpload: jest.Mock;
+        removeStoredFileByUrl: jest.Mock;
+    };
 
     // Factory for a fake user object — reuse across tests
     const mockUser = {
@@ -51,6 +54,7 @@ describe('UserService', () => {
         prisma.$transaction.mockImplementation(async (callback) => callback(prisma));
         uploadService = {
             consumePendingUpload: jest.fn(),
+            removeStoredFileByUrl: jest.fn(),
         };
 
         const module: TestingModule = await Test.createTestingModule({
@@ -246,7 +250,10 @@ describe('UserService', () => {
         });
 
         it('should attach uploaded profile image when imageUploadId is provided', async () => {
-            prisma.user.findFirst.mockResolvedValue(mockUser);
+            prisma.user.findFirst.mockResolvedValue({
+                ...mockUser,
+                profileImageUrl: 'http://localhost:3000/uploads/old-avatar.webp',
+            });
             prisma.user.update.mockResolvedValue({
                 ...mockUser,
                 profileImageUrl: 'http://localhost:3000/uploads/avatar.webp',
@@ -277,6 +284,9 @@ describe('UserService', () => {
                 }),
                 select: expect.objectContaining({ profileImageUrl: true }),
             });
+            expect(uploadService.removeStoredFileByUrl).toHaveBeenCalledWith(
+                'http://localhost:3000/uploads/old-avatar.webp',
+            );
         });
 
         it('should ignore email updates even if email is passed directly to the service', async () => {

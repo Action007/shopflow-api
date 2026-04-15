@@ -193,4 +193,25 @@ describe('UploadService', () => {
             expect(prisma.upload.delete).not.toHaveBeenCalled();
         });
     });
+
+    describe('removeStoredFileByUrl', () => {
+        it('should remove a stored file when url points to /uploads', async () => {
+            await service.removeStoredFileByUrl(
+                'http://localhost:3000/uploads/stored-avatar.png',
+            );
+
+            expect(rmSpy).toHaveBeenCalledWith(
+                expect.stringContaining('/uploads/stored-avatar.png'),
+                { force: true },
+            );
+        });
+
+        it('should ignore non-upload urls', async () => {
+            await service.removeStoredFileByUrl(
+                'http://localhost:3000/images/stored-avatar.png',
+            );
+
+            expect(rmSpy).not.toHaveBeenCalled();
+        });
+    });
 });
