@@ -8,29 +8,29 @@ import {
     Post,
     UploadedFile,
     UseInterceptors,
+    BadRequestException,
+    UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { diskStorage } from 'multer';
-import {
-    BadRequestException,
-    UnsupportedMediaTypeException,
-} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { mkdirSync } from 'fs';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
+import { UPLOAD_DIR } from './constants/upload.constants';
 
-const uploadPath = 'uploads';
 const allowedMimeTypes = new Set([
     'image/jpeg',
     'image/png',
     'image/webp',
 ]);
+
 const maxFileSize = 5 * 1024 * 1024;
+
 type UploadedImageFile = {
     originalname: string;
     filename: string;
@@ -44,14 +44,14 @@ export class UploadController {
         private readonly uploadService: UploadService,
         private readonly configService: ConfigService,
     ) {
-        mkdirSync(uploadPath, { recursive: true });
+        mkdirSync(UPLOAD_DIR, { recursive: true });
     }
 
     @Post('images')
     @UseInterceptors(
         FileInterceptor('file', {
             storage: diskStorage({
-                destination: uploadPath,
+                destination: UPLOAD_DIR,
                 filename: (_req, file, callback) => {
                     const uniqueName = `${randomUUID()}${extname(file.originalname).toLowerCase()}`;
                     callback(null, uniqueName);
@@ -60,15 +60,13 @@ export class UploadController {
             limits: { fileSize: maxFileSize },
             fileFilter: (_req, file, callback) => {
                 if (!allowedMimeTypes.has(file.mimetype)) {
-                    callback(
+                    return callback(
                         new UnsupportedMediaTypeException(
-                            'Only jpeg, png, and webp images are allowed',
+                            'Only jpeg, png, webp allowed',
                         ),
                         false,
                     );
-                    return;
                 }
-
                 callback(null, true);
             },
         }),
@@ -84,6 +82,7 @@ export class UploadController {
         }
 
         const publicUrl = `${this.configService.getOrThrow<string>('APP_BASE_URL')}/uploads/${file.filename}`;
+
         const upload = await this.uploadService.createImageUpload({
             file,
             uploadedById: user.id,
@@ -92,21 +91,19 @@ export class UploadController {
 
         return {
             id: upload.id,
-            fileName: upload.fileName,
-            originalName: upload.originalName,
-            mimeType: upload.mimeType,
-            size: upload.size,
-            status: upload.status,
             url: upload.url,
         };
     }
 
     @Delete(':id')
-    @HttpCode(HttpStatus.NO_CONTENT)
     async deleteUpload(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: { id: string; role: Role },
     ): Promise<void> {
-        await this.uploadService.removePendingUpload(id, user.id, user.role);
+        await this.uploadService.removePendingUpload(
+            id,
+            user.id,
+            user.role,
+        );
     }
 }

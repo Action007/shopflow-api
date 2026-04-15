@@ -4,28 +4,21 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, UploadStatus, Role } from '@prisma/client';
 import { promises as fs } from 'fs';
 import { basename, join } from 'path';
+import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
+import { UPLOAD_DIR } from './constants/upload.constants';
 
 type StoredUpload = Prisma.UploadGetPayload<Record<string, never>>;
-type UploadedImageFile = {
-    originalname: string;
-    filename: string;
-    mimetype: string;
-    size: number;
-};
 
 @Injectable()
 export class UploadService {
-    private readonly uploadDir = join(process.cwd(), 'uploads');
-
     constructor(private readonly prisma: PrismaService) {}
 
     async createImageUpload(params: {
-        file: UploadedImageFile;
+        file: any;
         uploadedById: string;
         publicUrl: string;
     }): Promise<StoredUpload> {
@@ -48,11 +41,12 @@ export class UploadService {
         currentUserId: string;
         currentUserRole: Role;
         tx?: Prisma.TransactionClient | PrismaService;
-    }): Promise<StoredUpload> {
+    }) {
         const { uploadId, currentUserId, currentUserRole, tx } = params;
-        const uploadRepository = (tx ?? this.prisma).upload;
 
-        const upload = await uploadRepository.findUnique({
+        const repo = (tx ?? this.prisma).upload;
+
+        const upload = await repo.findUnique({
             where: { id: uploadId },
         });
 
@@ -73,7 +67,7 @@ export class UploadService {
             );
         }
 
-        return uploadRepository.update({
+        return repo.update({
             where: { id: upload.id },
             data: { status: UploadStatus.USED },
         });
@@ -105,36 +99,42 @@ export class UploadService {
             );
         }
 
+        const filePath = join(UPLOAD_DIR, upload.fileName);
+
+        try {
+            await fs.access(filePath);
+            await fs.unlink(filePath);
+        } catch (err) {
+            console.warn('File not found or already deleted:', filePath);
+        }
+
         await this.prisma.upload.delete({
             where: { id: upload.id },
         });
-        await fs.rm(join(this.uploadDir, upload.fileName), { force: true });
     }
 
     async removeStoredFileByUrl(fileUrl?: string | null): Promise<void> {
         const fileName = this.getStoredFileName(fileUrl);
+        if (!fileName) return;
 
-        if (!fileName) {
-            return;
+        const filePath = join(UPLOAD_DIR, fileName);
+
+        try {
+            await fs.access(filePath);
+            await fs.unlink(filePath);
+        } catch {
+            console.warn('File not found:', filePath);
         }
-
-        await fs.rm(join(this.uploadDir, fileName), { force: true });
     }
 
     private getStoredFileName(fileUrl?: string | null): string | null {
-        if (!fileUrl) {
-            return null;
-        }
+        if (!fileUrl) return null;
 
         try {
-            const parsedUrl = new URL(fileUrl, 'http://localhost');
+            const parsedUrl = new URL(fileUrl);
+            if (!parsedUrl.pathname.startsWith('/uploads/')) return null;
 
-            if (!parsedUrl.pathname.startsWith('/uploads/')) {
-                return null;
-            }
-
-            const fileName = basename(parsedUrl.pathname);
-            return fileName ? fileName : null;
+            return basename(parsedUrl.pathname);
         } catch {
             return null;
         }
