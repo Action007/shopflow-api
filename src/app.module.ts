@@ -18,6 +18,7 @@ import { validate } from './config/env.validation';
 import { UploadModule } from './upload/upload.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 
+const isProduction = process.env.NODE_ENV === 'production';
 @Module({
     imports: [
         PrismaModule,
@@ -30,7 +31,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
         HealthModule,
         UploadModule,
         WishlistModule,
-        ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+        ThrottlerModule.forRoot(isProduction ? [{ ttl: 60000, limit: 100 }] : []),
         ConfigModule.forRoot({
             isGlobal: true,
             validate,
