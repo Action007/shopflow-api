@@ -96,7 +96,16 @@ describe('CategoryService', () => {
             expect(result).toEqual([mockCategory]);
             expect(prisma.category.findMany).toHaveBeenCalledWith({
                 where: { parentId: null, deletedAt: null },
-                include: { children: true },
+                include: {
+                    children: {
+                        where: { deletedAt: null },
+                        include: {
+                            children: {
+                                where: { deletedAt: null },
+                            },
+                        },
+                    },
+                },
             });
         });
     });
