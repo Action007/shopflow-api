@@ -1,12 +1,16 @@
-import { PrismaClient, Role, OrderStatus } from '@prisma/client';
+import { OrderStatus, PrismaClient, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
+const APP_BASE_URL = process.env.APP_BASE_URL ?? 'http://localhost:3000';
+
+function uploadUrl(fileName: string): string {
+    return `${APP_BASE_URL}/uploads/${fileName}`;
+}
 
 async function main() {
     console.log('Seeding database...');
 
-    // Clean existing data (FK-safe order)
     await prisma.orderItem.deleteMany();
     await prisma.order.deleteMany();
     await prisma.cartItem.deleteMany();
@@ -15,10 +19,10 @@ async function main() {
     await prisma.wishlist.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.product.deleteMany();
+    await prisma.upload.deleteMany();
     await prisma.category.deleteMany();
     await prisma.user.deleteMany();
 
-    // ─── Users ───────────────────────────────────────────────────────────────
     const hashedPassword = await bcrypt.hash('Password123!', 10);
 
     const admin = await prisma.user.create({
@@ -30,7 +34,6 @@ async function main() {
             role: Role.ADMIN,
         },
     });
-    console.log(`Created admin: ${admin.email}`);
 
     const customer = await prisma.user.create({
         data: {
@@ -41,7 +44,6 @@ async function main() {
             role: Role.CUSTOMER,
         },
     });
-    console.log(`Created customer: ${customer.email}`);
 
     const customer2 = await prisma.user.create({
         data: {
@@ -52,291 +54,518 @@ async function main() {
             role: Role.CUSTOMER,
         },
     });
-    console.log(`Created customer: ${customer2.email}`);
 
-    // ─── Categories ──────────────────────────────────────────────────────────
-    const phones = await prisma.category.create({
+    console.log(`Created users: ${admin.email}, ${customer.email}, ${customer2.email}`);
+
+    const mobile = await prisma.category.create({
         data: {
-            name: 'Phones',
-            description: 'Smartphones and mobile devices',
+            name: 'Mobile',
+            description: 'Phones and mobile-first accessories',
         },
     });
-
-    const laptops = await prisma.category.create({
-        data: {
-            name: 'Laptops',
-            description: 'Laptop computers and ultrabooks',
-        },
-    });
-
-    const accessories = await prisma.category.create({
-        data: {
-            name: 'Accessories',
-            description: 'Tech accessories and peripherals',
-        },
-    });
-
-    const audio = await prisma.category.create({
-        data: {
-            name: 'Audio',
-            description: 'Headphones, earbuds, and speakers',
-        },
-    });
-
     const wearables = await prisma.category.create({
         data: {
             name: 'Wearables',
-            description: 'Smartwatches and fitness trackers',
+            description: 'Smartwatches and fitness-focused devices',
         },
     });
-
-    const iosPhones = await prisma.category.create({
+    const computers = await prisma.category.create({
         data: {
-            name: 'iOS Phones',
-            description: 'Apple iPhone models',
-            parentId: phones.id,
+            name: 'Computers',
+            description: 'Computers, components, and peripherals',
         },
     });
-
-    const androidPhones = await prisma.category.create({
+    const audio = await prisma.category.create({
         data: {
-            name: 'Android Phones',
-            description: 'Android smartphones from leading brands',
-            parentId: phones.id,
+            name: 'Audio',
+            description: 'Personal audio and speakers',
         },
     });
-
-    const professionalLaptops = await prisma.category.create({
+    const gaming = await prisma.category.create({
         data: {
-            name: 'Professional Laptops',
-            description: 'High-performance laptops for work and creators',
-            parentId: laptops.id,
+            name: 'Gaming',
+            description: 'Consoles and gaming accessories',
         },
     });
-
-    const tablets = await prisma.category.create({
+    const smartHome = await prisma.category.create({
         data: {
-            name: 'Tablets',
-            description: 'Tablets and large-screen portable devices',
-            parentId: accessories.id,
+            name: 'Smart Home',
+            description: 'Connected home devices and automation',
         },
     });
 
-    const earbuds = await prisma.category.create({
+    const smartphones = await prisma.category.create({
         data: {
-            name: 'Earbuds',
-            description: 'Compact in-ear wireless audio devices',
-            parentId: audio.id,
+            name: 'Smartphones',
+            description: 'Flagship and mainstream smartphones',
+            parentId: mobile.id,
         },
     });
-
-    const headphones = await prisma.category.create({
+    const mobileAccessories = await prisma.category.create({
         data: {
-            name: 'Headphones',
-            description: 'Over-ear and on-ear premium headphones',
-            parentId: audio.id,
+            name: 'Mobile Accessories',
+            description: 'Audio, charging, and power accessories',
+            parentId: mobile.id,
         },
     });
-
     const smartwatches = await prisma.category.create({
         data: {
             name: 'Smartwatches',
-            description: 'Connected watches with health and fitness features',
+            description: 'Wrist-worn smart devices',
             parentId: wearables.id,
         },
     });
+    const fitnessBands = await prisma.category.create({
+        data: {
+            name: 'Fitness Bands',
+            description: 'Slim activity and health trackers',
+            parentId: wearables.id,
+        },
+    });
+    const laptops = await prisma.category.create({
+        data: {
+            name: 'Laptops',
+            description: 'Portable computers for work and play',
+            parentId: computers.id,
+        },
+    });
+    const tablets = await prisma.category.create({
+        data: {
+            name: 'Tablets',
+            description: 'Large-screen mobile computers',
+            parentId: computers.id,
+        },
+    });
+    const computerComponents = await prisma.category.create({
+        data: {
+            name: 'Components',
+            description: 'Upgrade parts for PC builds',
+            parentId: computers.id,
+        },
+    });
+    const computerAccessories = await prisma.category.create({
+        data: {
+            name: 'Computer Accessories',
+            description: 'Input devices and displays',
+            parentId: computers.id,
+        },
+    });
+    const headphones = await prisma.category.create({
+        data: {
+            name: 'Headphones',
+            description: 'Over-ear and immersive listening',
+            parentId: audio.id,
+        },
+    });
+    const speakers = await prisma.category.create({
+        data: {
+            name: 'Speakers',
+            description: 'Portable and home speakers',
+            parentId: audio.id,
+        },
+    });
+    const consoles = await prisma.category.create({
+        data: {
+            name: 'Consoles',
+            description: 'Current generation gaming systems',
+            parentId: gaming.id,
+        },
+    });
+    const gamingAccessories = await prisma.category.create({
+        data: {
+            name: 'Gaming Accessories',
+            description: 'Controllers and gaming add-ons',
+            parentId: gaming.id,
+        },
+    });
+    const security = await prisma.category.create({
+        data: {
+            name: 'Security',
+            description: 'Cameras and monitoring devices',
+            parentId: smartHome.id,
+        },
+    });
+    const lighting = await prisma.category.create({
+        data: {
+            name: 'Lighting',
+            description: 'Connected bulbs and ambient lighting',
+            parentId: smartHome.id,
+        },
+    });
 
-    console.log('Created 12 categories including child categories');
+    const mobileAudio = await prisma.category.create({
+        data: {
+            name: 'Mobile Audio',
+            description: 'Earbuds and mobile listening gear',
+            parentId: mobileAccessories.id,
+        },
+    });
+    const mobileCharging = await prisma.category.create({
+        data: {
+            name: 'Charging',
+            description: 'Chargers and charging pads',
+            parentId: mobileAccessories.id,
+        },
+    });
+    const mobilePower = await prisma.category.create({
+        data: {
+            name: 'Power',
+            description: 'Power banks and portable battery gear',
+            parentId: mobileAccessories.id,
+        },
+    });
+    const storage = await prisma.category.create({
+        data: {
+            name: 'Storage',
+            description: 'Internal and external storage upgrades',
+            parentId: computerComponents.id,
+        },
+    });
+    const cpu = await prisma.category.create({
+        data: {
+            name: 'CPU',
+            description: 'Desktop processors',
+            parentId: computerComponents.id,
+        },
+    });
+    const gpu = await prisma.category.create({
+        data: {
+            name: 'GPU',
+            description: 'Graphics cards for gaming and creators',
+            parentId: computerComponents.id,
+        },
+    });
+    const input = await prisma.category.create({
+        data: {
+            name: 'Input',
+            description: 'Keyboards, mice, and control devices',
+            parentId: computerAccessories.id,
+        },
+    });
+    const displays = await prisma.category.create({
+        data: {
+            name: 'Displays',
+            description: 'Monitors and display accessories',
+            parentId: computerAccessories.id,
+        },
+    });
 
-    // ─── Products ─────────────────────────────────────────────────────────────
-    const products = await Promise.all([
-        // Phones
-        prisma.product.create({
-            data: {
-                name: 'iPhone 17',
-                description:
-                    'Apple iPhone 17 with A19 chip, 48MP camera system, and all-day battery life. Available in 128GB and 256GB.',
-                price: 899.99,
-                stockQuantity: 60,
-                categoryId: iosPhones.id,
-                imageUrl:
-                    'https://www.pngall.com/wp-content/uploads/17/iPhone-17-Enhanced-Performance-PNG.png',
-            },
-        }),
-        prisma.product.create({
-            data: {
-                name: 'iPhone 17 Pro',
-                description:
-                    'Apple iPhone 17 Pro with A19 Pro chip, titanium design, pro camera system with 5x optical zoom.',
-                price: 1099.99,
-                stockQuantity: 45,
-                categoryId: iosPhones.id,
-                imageUrl:
-                    'https://www.pngall.com/wp-content/uploads/17/iPhone-17-Enhanced-Audio-Quality-PNG.png',
-            },
-        }),
-        prisma.product.create({
-            data: {
-                name: 'Samsung Galaxy S26 Ultra',
-                description:
-                    'Samsung Galaxy S26 Ultra with Snapdragon 8 Elite, 200MP camera, built-in S Pen, and 5000mAh battery.',
-                price: 1299.99,
-                stockQuantity: 30,
-                categoryId: androidPhones.id,
-                imageUrl:
-                    'https://www.dxomark.com/wp-content/uploads/medias/post-190763/Samsung-S26-Ultra-png.png',
-            },
-        }),
+    console.log('Created category tree with 6 root categories and 24 total categories');
 
-        // Laptops
-        prisma.product.create({
-            data: {
-                name: 'MacBook Pro M4',
-                description:
-                    'Apple MacBook Pro with M4 chip, 14-inch Liquid Retina XDR display, up to 24GB unified memory.',
-                price: 1999.99,
-                stockQuantity: 20,
-                categoryId: professionalLaptops.id,
-                imageUrl:
-                    'https://www.pngall.com/wp-content/uploads/19/Macbook-Apple-Compact-Mobile-Computing-PNG.png',
-            },
-        }),
-        prisma.product.create({
-            data: {
-                name: 'Dell XPS 15',
-                description:
-                    'Dell XPS 15 with Intel Core i9, 15.6-inch OLED InfinityEdge display, NVIDIA RTX 4060.',
-                price: 1899.99,
-                stockQuantity: 15,
-                categoryId: professionalLaptops.id,
-                imageUrl:
-                    'https://w7.pngwing.com/pngs/910/21/png-transparent-laptop-dell-xps-15-computer-monitors-personal-computer-laptops-electronics-netbook-computer.png',
-            },
-        }),
-        prisma.product.create({
-            data: {
-                name: 'iPad Pro 13"',
-                description:
-                    'Apple iPad Pro with M4 chip, 13-inch Ultra Retina XDR display, Apple Pencil Pro support.',
-                price: 1299.99,
-                stockQuantity: 25,
-                categoryId: tablets.id,
-                imageUrl:
-                    'https://www.pngall.com/wp-content/uploads/15/iPad-Pro-PNG-Image.png',
-            },
-        }),
+    const productsData = [
+        {
+            name: 'iPhone 17 Pro',
+            description:
+                'Apple flagship smartphone with a premium camera system, fast performance, and a polished everyday experience.',
+            price: '1099.99',
+            stockQuantity: 24,
+            categoryId: smartphones.id,
+            imageUrl: uploadUrl('iphone-17-pro.png'),
+        },
+        {
+            name: 'iPhone 17',
+            description:
+                'A balanced iPhone with strong battery life, smooth performance, and an approachable flagship feature set.',
+            price: '899.99',
+            stockQuantity: 38,
+            categoryId: smartphones.id,
+            imageUrl: uploadUrl('iphone-17.png'),
+        },
+        {
+            name: 'Samsung Galaxy S26 Ultra',
+            description:
+                'Samsung premium large-format phone with a high-resolution camera array and top-tier mobile hardware.',
+            price: '1299.99',
+            stockQuantity: 18,
+            categoryId: smartphones.id,
+            imageUrl: uploadUrl('samsung-S26-ultra.png'),
+        },
+        {
+            name: 'AirPods Pro 2',
+            description:
+                'Wireless earbuds with active noise cancellation, transparency mode, and compact all-day portability.',
+            price: '249.99',
+            stockQuantity: 75,
+            categoryId: mobileAudio.id,
+            imageUrl: uploadUrl('airpods-pro-2.png'),
+        },
+        {
+            name: 'Anker 65W GaN Charger',
+            description:
+                'Compact fast charger that can power phones, tablets, and many laptops from a single GaN brick.',
+            price: '59.99',
+            stockQuantity: 90,
+            categoryId: mobileCharging.id,
+            imageUrl: uploadUrl('anker-65w-gan-charger.webp'),
+        },
+        {
+            name: 'Belkin Wireless Charging Pad',
+            description:
+                'Qi-compatible charging pad for a clean desk or bedside setup with cable-free phone charging.',
+            price: '39.99',
+            stockQuantity: 64,
+            categoryId: mobileCharging.id,
+            imageUrl: uploadUrl('belkin-wireless-charging-pad.webp'),
+        },
+        {
+            name: 'Xiaomi 20,000mAh Power Bank',
+            description:
+                'High-capacity portable battery built for travel days, commutes, and emergency top-ups.',
+            price: '49.99',
+            stockQuantity: 56,
+            categoryId: mobilePower.id,
+            imageUrl: uploadUrl('xiaomi-power-pank.png'),
+        },
+        {
+            name: 'Apple Watch Ultra 2',
+            description:
+                'Rugged premium smartwatch with strong fitness features, bright display, and long-lasting battery.',
+            price: '799.99',
+            stockQuantity: 21,
+            categoryId: smartwatches.id,
+            imageUrl: uploadUrl('apple-watch-ultra-2.png'),
+        },
+        {
+            name: 'Samsung Galaxy Watch 7',
+            description:
+                'Samsung smartwatch with health tracking, smart notifications, and a polished Wear OS experience.',
+            price: '299.99',
+            stockQuantity: 44,
+            categoryId: smartwatches.id,
+            imageUrl: uploadUrl('samsung-galaxy-watch-7.png'),
+        },
+        {
+            name: 'Fitbit Charge 6',
+            description:
+                'Slim fitness band focused on workouts, sleep tracking, step counts, and daily health insights.',
+            price: '159.99',
+            stockQuantity: 48,
+            categoryId: fitnessBands.id,
+            imageUrl: uploadUrl('fitbit-charge-6.png'),
+        },
+        {
+            name: 'MacBook Pro M4',
+            description:
+                'High-performance Apple laptop for development, creative work, and demanding daily workflows.',
+            price: '1999.99',
+            stockQuantity: 16,
+            categoryId: laptops.id,
+            imageUrl: uploadUrl('macbook-pro-m4.png'),
+        },
+        {
+            name: 'iPad Pro 13',
+            description:
+                'Large premium tablet built for drawing, media, multitasking, and high-end mobile productivity.',
+            price: '1299.99',
+            stockQuantity: 27,
+            categoryId: tablets.id,
+            imageUrl: uploadUrl('ipad-pro-13.png'),
+        },
+        {
+            name: 'Samsung 990 Pro NVMe SSD',
+            description:
+                'Fast NVMe storage upgrade with strong sustained performance for gaming and creator workloads.',
+            price: '179.99',
+            stockQuantity: 52,
+            categoryId: storage.id,
+            imageUrl: uploadUrl('samsung-990-pro-nvme-ssd.png'),
+        },
+        {
+            name: 'WD Blue SATA SSD',
+            description:
+                'Dependable SATA SSD for breathing new life into older desktops and laptops.',
+            price: '79.99',
+            stockQuantity: 70,
+            categoryId: storage.id,
+            imageUrl: uploadUrl('wd-blue-sata-ssd.png'),
+        },
+        {
+            name: 'Seagate Barracuda HDD',
+            description:
+                'Large-capacity hard drive designed for budget storage expansion and media archives.',
+            price: '69.99',
+            stockQuantity: 61,
+            categoryId: storage.id,
+            imageUrl: uploadUrl('seagate-barracuda-hhd.png'),
+        },
+        {
+            name: 'Intel Core i7-14700K',
+            description:
+                'Unlocked desktop processor with strong mixed gaming and productivity performance.',
+            price: '419.99',
+            stockQuantity: 33,
+            categoryId: cpu.id,
+            imageUrl: uploadUrl('intel-core-i7-14700k.png'),
+        },
+        {
+            name: 'AMD Ryzen 7 7800X3D',
+            description:
+                'Top-tier gaming CPU known for excellent efficiency and standout in-game frame rates.',
+            price: '399.99',
+            stockQuantity: 29,
+            categoryId: cpu.id,
+            imageUrl: uploadUrl('amd-Ryzen-7-9800X3d.png'),
+        },
+        {
+            name: 'NVIDIA RTX 4070',
+            description:
+                'Modern graphics card for high-refresh 1440p gaming, creator apps, and ray tracing workloads.',
+            price: '599.99',
+            stockQuantity: 14,
+            categoryId: gpu.id,
+            imageUrl: uploadUrl('asus-rog-strix-geforce-rtx-5070.png'),
+        },
+        {
+            name: 'AMD Radeon RX 7800 XT',
+            description:
+                'Powerful AMD graphics card aimed at smooth 1440p gaming and strong raster performance.',
+            price: '549.99',
+            stockQuantity: 17,
+            categoryId: gpu.id,
+            imageUrl: uploadUrl('asrock-amdradeon-rx-7800.png'),
+        },
+        {
+            name: 'Logitech MX Master 3S Mouse',
+            description:
+                'Comfort-focused productivity mouse with quiet clicks, precision scrolling, and multi-device support.',
+            price: '99.99',
+            stockQuantity: 42,
+            categoryId: input.id,
+            imageUrl: uploadUrl('logitech-mx-master-3s-mouse.webp'),
+        },
+        {
+            name: 'Keychron K6 Mechanical Keyboard',
+            description:
+                'Compact wireless mechanical keyboard with a clean layout and satisfying typing feel.',
+            price: '89.99',
+            stockQuantity: 39,
+            categoryId: input.id,
+            imageUrl: uploadUrl('keychron-k6-mechanical-keyboard.webp'),
+        },
+        {
+            name: 'Dell UltraSharp 27 Monitor',
+            description:
+                'Color-accurate 27-inch monitor built for office work, design tasks, and everyday clarity.',
+            price: '329.99',
+            stockQuantity: 26,
+            categoryId: displays.id,
+            imageUrl: uploadUrl('dell-ultraSharp-27-monitor.png'),
+        },
+        {
+            name: 'LG UltraWide Curved Monitor',
+            description:
+                'Immersive ultrawide display for multitasking, entertainment, and a more cinematic setup.',
+            price: '449.99',
+            stockQuantity: 19,
+            categoryId: displays.id,
+            imageUrl: uploadUrl('lg-ultrawide-curved-monitor.webp'),
+        },
+        {
+            name: 'Sony WH-1000XM5',
+            description:
+                'Premium wireless headphones with excellent noise cancellation and a refined sound profile.',
+            price: '379.99',
+            stockQuantity: 31,
+            categoryId: headphones.id,
+            imageUrl: uploadUrl('sony-wh-1000xm5.webp'),
+        },
+        {
+            name: 'JBL Charge 5',
+            description:
+                'Portable Bluetooth speaker with punchy sound, rugged build, and outdoor-friendly battery life.',
+            price: '179.99',
+            stockQuantity: 36,
+            categoryId: speakers.id,
+            imageUrl: uploadUrl('jbl-charge-5.png'),
+        },
+        {
+            name: 'PlayStation 5',
+            description:
+                'Sony current-generation console with fast load times and a strong first-party game lineup.',
+            price: '499.99',
+            stockQuantity: 12,
+            categoryId: consoles.id,
+            imageUrl: uploadUrl('playstation-5.png'),
+        },
+        {
+            name: 'Xbox Series X',
+            description:
+                'Microsoft flagship console offering excellent performance, Game Pass value, and quick resume.',
+            price: '499.99',
+            stockQuantity: 13,
+            categoryId: consoles.id,
+            imageUrl: uploadUrl('xbox-series-x.png'),
+        },
+        {
+            name: 'DualSense Wireless Controller',
+            description:
+                'PlayStation controller with adaptive triggers, haptics, and a familiar ergonomic design.',
+            price: '69.99',
+            stockQuantity: 47,
+            categoryId: gamingAccessories.id,
+            imageUrl: uploadUrl('dualsense-wireless-controller.webp'),
+        },
+        {
+            name: 'Ring Indoor Cam',
+            description:
+                'Compact indoor security camera for live viewing, alerts, and simple home monitoring.',
+            price: '59.99',
+            stockQuantity: 54,
+            categoryId: security.id,
+            imageUrl: uploadUrl('ring-indoor-cam.webp'),
+        },
+        {
+            name: 'Philips Hue Smart Bulb',
+            description:
+                'Connected smart bulb for scenes, scheduling, and app-based lighting control throughout the home.',
+            price: '49.99',
+            stockQuantity: 83,
+            categoryId: lighting.id,
+            imageUrl: uploadUrl('philips-hue-smart-bulb.png'),
+        },
+    ];
 
-        // Audio
-        prisma.product.create({
-            data: {
-                name: 'AirPods Pro 2',
-                description:
-                    'Apple AirPods Pro 2nd generation with Active Noise Cancellation, Transparency mode, and Adaptive Audio.',
-                price: 249.99,
-                stockQuantity: 80,
-                categoryId: earbuds.id,
-                imageUrl:
-                    'https://www.citypng.com/public/uploads/preview/airpods-pro-2nd-generation-png-7040816946218451no0esezhy.png',
-            },
-        }),
-        prisma.product.create({
-            data: {
-                name: 'AirPods Max',
-                description:
-                    'Apple AirPods Max with high-fidelity audio, Active Noise Cancellation, and up to 20 hours battery life.',
-                price: 549.99,
-                stockQuantity: 35,
-                categoryId: headphones.id,
-                imageUrl:
-                    'https://www.apple.com/v/airpods-max/j/images/overview/product-stories/hifi-sound/modal/audio_bc_microphone__c4kgd4pga3cm_large.png',
-            },
-        }),
-        prisma.product.create({
-            data: {
-                name: 'Sony WH-1000XM5',
-                description:
-                    'Sony WH-1000XM5 wireless headphones with industry-leading noise cancellation and 30-hour battery.',
-                price: 379.99,
-                stockQuantity: 40,
-                categoryId: headphones.id,
-                imageUrl:
-                    'https://cdn.shopify.com/s/files/1/0397/7166/8635/products/WH1000XM5_Silver.png?v=1761235815',
-            },
-        }),
+    const products = await Promise.all(
+        productsData.map((product) =>
+            prisma.product.create({
+                data: product,
+            }),
+        ),
+    );
 
-        // Wearables
-        prisma.product.create({
-            data: {
-                name: 'Apple Watch Ultra 2',
-                description:
-                    'Apple Watch Ultra 2 with titanium case, precision dual-frequency GPS, up to 60 hours battery life.',
-                price: 799.99,
-                stockQuantity: 20,
-                categoryId: smartwatches.id,
-                imageUrl:
-                    'https://cdsassets.apple.com/live/7WUAS350/images/tech-specs/111832-watch-ultra-2.png',
-            },
-        }),
-        prisma.product.create({
-            data: {
-                name: 'Samsung Galaxy Watch 7',
-                description:
-                    'Samsung Galaxy Watch 7 with advanced health monitoring, sleep tracking, and 40-hour battery life.',
-                price: 299.99,
-                stockQuantity: 50,
-                categoryId: smartwatches.id,
-                imageUrl:
-                    'https://www.vhv.rs/dpng/d/495-4951352_samsung-galaxy-watch-active-hd-png-download.png',
-            },
-        }),
+    console.log(`Created ${products.length} products with local upload-backed image URLs`);
 
-        // Out of stock — for UI testing
-        prisma.product.create({
-            data: {
-                name: 'MacBook Air M3',
-                description:
-                    'Apple MacBook Air with M3 chip, fanless design, 13.6-inch Liquid Retina display. Currently out of stock.',
-                price: 1299.99,
-                stockQuantity: 0,
-                categoryId: professionalLaptops.id,
-                imageUrl:
-                    'https://www.pngall.com/wp-content/uploads/19/Macbook-Apple-Compact-Mobile-Computing-PNG.png',
-            },
-        }),
-    ]);
+    const iphone17Pro = products.find((product) => product.name === 'iPhone 17 Pro');
+    const macbookPro = products.find((product) => product.name === 'MacBook Pro M4');
+    const airpodsPro = products.find((product) => product.name === 'AirPods Pro 2');
 
-    console.log(`Created ${products.length} products`);
+    if (!iphone17Pro || !macbookPro || !airpodsPro) {
+        throw new Error('Missing seeded products required for order creation');
+    }
 
-    // ─── Orders (for John's order history) ───────────────────────────────────
-    const iphone17 = products[0];
-    const macbookPro = products[3];
-    const airpodsPro = products[6];
-
-    // Order 1 — DELIVERED
-    const order1 = await prisma.order.create({
+    await prisma.order.create({
         data: {
             orderNumber: 'ORD-2025-0001',
             userId: customer.id,
             status: OrderStatus.DELIVERED,
-            totalAmount: iphone17.price,
+            totalAmount: iphone17Pro.price,
             shippingAddress: '123 Main Street, New York, NY 10001, USA',
             paidAt: new Date('2025-03-10T10:00:00Z'),
             createdAt: new Date('2025-03-10T09:00:00Z'),
             items: {
                 create: [
                     {
-                        productId: iphone17.id,
+                        productId: iphone17Pro.id,
                         quantity: 1,
-                        priceAtPurchase: iphone17.price,
-                        productNameAtPurchase: iphone17.name,
+                        priceAtPurchase: iphone17Pro.price,
+                        productNameAtPurchase: iphone17Pro.name,
                     },
                 ],
             },
         },
     });
 
-    // Order 2 — SHIPPED
-    const order2 = await prisma.order.create({
+    await prisma.order.create({
         data: {
             orderNumber: 'ORD-2025-0002',
             userId: customer.id,
@@ -364,13 +593,12 @@ async function main() {
         },
     });
 
-    // Order 3 — PENDING (cancellable — for UI testing)
-    const order3 = await prisma.order.create({
+    await prisma.order.create({
         data: {
             orderNumber: 'ORD-2025-0003',
             userId: customer.id,
             status: OrderStatus.PENDING,
-            totalAmount: airpodsPro.price,
+            totalAmount: Number(airpodsPro.price) * 2,
             shippingAddress: '123 Main Street, New York, NY 10001, USA',
             createdAt: new Date(),
             items: {
@@ -387,7 +615,6 @@ async function main() {
     });
 
     console.log(`Created 3 orders for ${customer.email}`);
-
     console.log('\n✅ Seed complete!');
     console.log('─────────────────────────────────────');
     console.log('Admin:      admin@example.com / Password123!');

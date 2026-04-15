@@ -16,7 +16,8 @@ import {
 describe('UploadService', () => {
     let service: UploadService;
     let prisma: MockPrismaService;
-    let rmSpy: jest.SpiedFunction<typeof fs.rm>;
+    let accessSpy: jest.SpiedFunction<typeof fs.access>;
+    let unlinkSpy: jest.SpiedFunction<typeof fs.unlink>;
 
     const mockUpload = {
         id: 'upload-1',
@@ -33,7 +34,8 @@ describe('UploadService', () => {
 
     beforeEach(async () => {
         prisma = createMockPrismaService();
-        rmSpy = jest.spyOn(fs, 'rm').mockResolvedValue();
+        accessSpy = jest.spyOn(fs, 'access').mockResolvedValue(undefined);
+        unlinkSpy = jest.spyOn(fs, 'unlink').mockResolvedValue();
 
         const module: TestingModule = await Test.createTestingModule({
             providers: [
@@ -167,9 +169,11 @@ describe('UploadService', () => {
                 Role.CUSTOMER,
             );
 
-            expect(rmSpy).toHaveBeenCalledWith(
+            expect(accessSpy).toHaveBeenCalledWith(
                 expect.stringContaining('/uploads/stored-avatar.png'),
-                { force: true },
+            );
+            expect(unlinkSpy).toHaveBeenCalledWith(
+                expect.stringContaining('/uploads/stored-avatar.png'),
             );
             expect(prisma.upload.delete).toHaveBeenCalledWith({
                 where: { id: 'upload-1' },
@@ -200,9 +204,11 @@ describe('UploadService', () => {
                 'http://localhost:3000/uploads/stored-avatar.png',
             );
 
-            expect(rmSpy).toHaveBeenCalledWith(
+            expect(accessSpy).toHaveBeenCalledWith(
                 expect.stringContaining('/uploads/stored-avatar.png'),
-                { force: true },
+            );
+            expect(unlinkSpy).toHaveBeenCalledWith(
+                expect.stringContaining('/uploads/stored-avatar.png'),
             );
         });
 
@@ -211,7 +217,8 @@ describe('UploadService', () => {
                 'http://localhost:3000/images/stored-avatar.png',
             );
 
-            expect(rmSpy).not.toHaveBeenCalled();
+            expect(accessSpy).not.toHaveBeenCalled();
+            expect(unlinkSpy).not.toHaveBeenCalled();
         });
     });
 });

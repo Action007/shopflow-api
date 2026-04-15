@@ -96,6 +96,7 @@ export class UploadController {
     }
 
     @Delete(':id')
+    @HttpCode(HttpStatus.NO_CONTENT)
     async deleteUpload(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: { id: string; role: Role },

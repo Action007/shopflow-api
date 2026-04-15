@@ -175,6 +175,13 @@ Notes:
 | PATCH | `/api/v1/categories/:id` | JWT + ADMIN | Update category |
 | DELETE | `/api/v1/categories/:id` | JWT + ADMIN | Soft delete category |
 
+Notes:
+
+- Categories support up to 3 levels of depth.
+- Category names are globally unique in the current schema, not just unique per parent.
+- `GET /categories` returns only root categories, with non-deleted children and grandchildren nested under them.
+- Soft-deleted categories are excluded from category listing queries.
+
 ### Products
 
 | Method | Path | Auth | Description |
@@ -237,8 +244,10 @@ Notes:
 - `POST /uploads/images` expects `multipart/form-data` with a `file` field.
 - Accepted image types: `image/jpeg`, `image/png`, `image/webp`
 - Max file size: `5MB`
+- Upload responses return the upload record `id` and public `url`.
 - Uploads start in `PENDING` status and become `USED` when attached to a product or user profile.
 - Only `PENDING` uploads can be deleted directly.
+- `DELETE /uploads/:id` returns `204 No Content` on success.
 - Static files are served from `/uploads/:fileName`.
 
 Example upload flow:
@@ -342,6 +351,13 @@ Notes:
 ```bash
 npx prisma db seed
 ```
+
+Seed highlights:
+
+- 6 root categories with nested child and grandchild categories that match the current category tree rules
+- 30 products mapped to local files in [`uploads/`](/home/action666/Desktop/shopflow-api/uploads)
+- Product image URLs are generated from `APP_BASE_URL`, for example `http://localhost:3000/uploads/iphone-17.png`
+- 3 sample orders for `john@example.com`
 
 Default accounts:
 
