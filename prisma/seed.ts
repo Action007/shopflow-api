@@ -11,6 +11,8 @@ async function main() {
     await prisma.order.deleteMany();
     await prisma.cartItem.deleteMany();
     await prisma.cart.deleteMany();
+    await prisma.wishlistItem.deleteMany();
+    await prisma.wishlist.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.product.deleteMany();
     await prisma.category.deleteMany();
@@ -88,7 +90,63 @@ async function main() {
         },
     });
 
-    console.log('Created 5 categories');
+    const iosPhones = await prisma.category.create({
+        data: {
+            name: 'iOS Phones',
+            description: 'Apple iPhone models',
+            parentId: phones.id,
+        },
+    });
+
+    const androidPhones = await prisma.category.create({
+        data: {
+            name: 'Android Phones',
+            description: 'Android smartphones from leading brands',
+            parentId: phones.id,
+        },
+    });
+
+    const professionalLaptops = await prisma.category.create({
+        data: {
+            name: 'Professional Laptops',
+            description: 'High-performance laptops for work and creators',
+            parentId: laptops.id,
+        },
+    });
+
+    const tablets = await prisma.category.create({
+        data: {
+            name: 'Tablets',
+            description: 'Tablets and large-screen portable devices',
+            parentId: accessories.id,
+        },
+    });
+
+    const earbuds = await prisma.category.create({
+        data: {
+            name: 'Earbuds',
+            description: 'Compact in-ear wireless audio devices',
+            parentId: audio.id,
+        },
+    });
+
+    const headphones = await prisma.category.create({
+        data: {
+            name: 'Headphones',
+            description: 'Over-ear and on-ear premium headphones',
+            parentId: audio.id,
+        },
+    });
+
+    const smartwatches = await prisma.category.create({
+        data: {
+            name: 'Smartwatches',
+            description: 'Connected watches with health and fitness features',
+            parentId: wearables.id,
+        },
+    });
+
+    console.log('Created 12 categories including child categories');
 
     // ─── Products ─────────────────────────────────────────────────────────────
     const products = await Promise.all([
@@ -100,7 +158,7 @@ async function main() {
                     'Apple iPhone 17 with A19 chip, 48MP camera system, and all-day battery life. Available in 128GB and 256GB.',
                 price: 899.99,
                 stockQuantity: 60,
-                categoryId: phones.id,
+                categoryId: iosPhones.id,
                 imageUrl:
                     'https://www.pngall.com/wp-content/uploads/17/iPhone-17-Enhanced-Performance-PNG.png',
             },
@@ -112,7 +170,7 @@ async function main() {
                     'Apple iPhone 17 Pro with A19 Pro chip, titanium design, pro camera system with 5x optical zoom.',
                 price: 1099.99,
                 stockQuantity: 45,
-                categoryId: phones.id,
+                categoryId: iosPhones.id,
                 imageUrl:
                     'https://www.pngall.com/wp-content/uploads/17/iPhone-17-Enhanced-Audio-Quality-PNG.png',
             },
@@ -124,7 +182,7 @@ async function main() {
                     'Samsung Galaxy S26 Ultra with Snapdragon 8 Elite, 200MP camera, built-in S Pen, and 5000mAh battery.',
                 price: 1299.99,
                 stockQuantity: 30,
-                categoryId: phones.id,
+                categoryId: androidPhones.id,
                 imageUrl:
                     'https://www.dxomark.com/wp-content/uploads/medias/post-190763/Samsung-S26-Ultra-png.png',
             },
@@ -138,7 +196,7 @@ async function main() {
                     'Apple MacBook Pro with M4 chip, 14-inch Liquid Retina XDR display, up to 24GB unified memory.',
                 price: 1999.99,
                 stockQuantity: 20,
-                categoryId: laptops.id,
+                categoryId: professionalLaptops.id,
                 imageUrl:
                     'https://www.pngall.com/wp-content/uploads/19/Macbook-Apple-Compact-Mobile-Computing-PNG.png',
             },
@@ -150,7 +208,7 @@ async function main() {
                     'Dell XPS 15 with Intel Core i9, 15.6-inch OLED InfinityEdge display, NVIDIA RTX 4060.',
                 price: 1899.99,
                 stockQuantity: 15,
-                categoryId: laptops.id,
+                categoryId: professionalLaptops.id,
                 imageUrl:
                     'https://w7.pngwing.com/pngs/910/21/png-transparent-laptop-dell-xps-15-computer-monitors-personal-computer-laptops-electronics-netbook-computer.png',
             },
@@ -162,7 +220,7 @@ async function main() {
                     'Apple iPad Pro with M4 chip, 13-inch Ultra Retina XDR display, Apple Pencil Pro support.',
                 price: 1299.99,
                 stockQuantity: 25,
-                categoryId: accessories.id,
+                categoryId: tablets.id,
                 imageUrl:
                     'https://www.pngall.com/wp-content/uploads/15/iPad-Pro-PNG-Image.png',
             },
@@ -176,7 +234,7 @@ async function main() {
                     'Apple AirPods Pro 2nd generation with Active Noise Cancellation, Transparency mode, and Adaptive Audio.',
                 price: 249.99,
                 stockQuantity: 80,
-                categoryId: audio.id,
+                categoryId: earbuds.id,
                 imageUrl:
                     'https://www.citypng.com/public/uploads/preview/airpods-pro-2nd-generation-png-7040816946218451no0esezhy.png',
             },
@@ -188,7 +246,7 @@ async function main() {
                     'Apple AirPods Max with high-fidelity audio, Active Noise Cancellation, and up to 20 hours battery life.',
                 price: 549.99,
                 stockQuantity: 35,
-                categoryId: audio.id,
+                categoryId: headphones.id,
                 imageUrl:
                     'https://www.apple.com/v/airpods-max/j/images/overview/product-stories/hifi-sound/modal/audio_bc_microphone__c4kgd4pga3cm_large.png',
             },
@@ -200,7 +258,7 @@ async function main() {
                     'Sony WH-1000XM5 wireless headphones with industry-leading noise cancellation and 30-hour battery.',
                 price: 379.99,
                 stockQuantity: 40,
-                categoryId: audio.id,
+                categoryId: headphones.id,
                 imageUrl:
                     'https://cdn.shopify.com/s/files/1/0397/7166/8635/products/WH1000XM5_Silver.png?v=1761235815',
             },
@@ -214,7 +272,7 @@ async function main() {
                     'Apple Watch Ultra 2 with titanium case, precision dual-frequency GPS, up to 60 hours battery life.',
                 price: 799.99,
                 stockQuantity: 20,
-                categoryId: wearables.id,
+                categoryId: smartwatches.id,
                 imageUrl:
                     'https://cdsassets.apple.com/live/7WUAS350/images/tech-specs/111832-watch-ultra-2.png',
             },
@@ -226,7 +284,7 @@ async function main() {
                     'Samsung Galaxy Watch 7 with advanced health monitoring, sleep tracking, and 40-hour battery life.',
                 price: 299.99,
                 stockQuantity: 50,
-                categoryId: wearables.id,
+                categoryId: smartwatches.id,
                 imageUrl:
                     'https://www.vhv.rs/dpng/d/495-4951352_samsung-galaxy-watch-active-hd-png-download.png',
             },
@@ -240,7 +298,7 @@ async function main() {
                     'Apple MacBook Air with M3 chip, fanless design, 13.6-inch Liquid Retina display. Currently out of stock.',
                 price: 1299.99,
                 stockQuantity: 0,
-                categoryId: laptops.id,
+                categoryId: professionalLaptops.id,
                 imageUrl:
                     'https://www.pngall.com/wp-content/uploads/19/Macbook-Apple-Compact-Mobile-Computing-PNG.png',
             },
