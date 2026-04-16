@@ -49,6 +49,12 @@ describe('OrderService', () => {
         paidAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
+        user: {
+            id: 'user-1',
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john@example.com',
+        },
         items: [
             {
                 id: 'oi-1',
@@ -165,14 +171,14 @@ describe('OrderService', () => {
         });
     });
 
-    // ===== GET MY ORDERS =====
+    // ===== GET ORDERS =====
 
-    describe('getMyOrders', () => {
-        it('should return paginated orders', async () => {
+    describe('getOrders', () => {
+        it('should return paginated orders for a customer scoped to their user id', async () => {
             prisma.order.findMany.mockResolvedValue([mockOrder]);
             prisma.order.count.mockResolvedValue(1);
 
-            const result = await service.getMyOrders('user-1', {
+            const result = await service.getOrders('user-1', Role.CUSTOMER, {
                 page: 1,
                 limit: 10,
             });
@@ -182,9 +188,191 @@ describe('OrderService', () => {
             expect(prisma.order.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
                     where: { userId: 'user-1' },
+                    include: expect.objectContaining({
+                        user: expect.any(Object),
+                        items: expect.any(Object),
+                    }),
                     skip: 0,
                     take: 10,
                     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+                }),
+            );
+        });
+
+        it('should allow an admin to list all orders with filters', async () => {
+            prisma.order.findMany.mockResolvedValue([mockOrder]);
+            prisma.order.count.mockResolvedValue(1);
+
+            await service.getOrders('admin-1', Role.ADMIN, {
+                page: 2,
+                limit: 5,
+                status: OrderStatus.PENDING,
+                search: 'john@example.com',
+                userId: '550e8400-e29b-41d4-a716-446655440000',
+                dateFrom: '2026-04-01',
+                dateTo: '2026-04-16',
+                sortOrder: 'asc',
+            });
+
+            expect(prisma.order.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: {
+                        userId: '550e8400-e29b-41d4-a716-446655440000',
+                        status: OrderStatus.PENDING,
+                        createdAt: {
+                            gte: new Date('2026-04-01'),
+                            lte: new Date('2026-04-16T23:59:59.999Z'),
+                        },
+                        OR: [
+                            {
+                                orderNumber: {
+                                    contains: 'john@example.com',
+                                    mode: 'insensitive',
+                                },
+                            },
+                            {
+                                user: {
+                                    firstName: {
+                                        contains: 'john@example.com',
+                                        mode: 'insensitive',
+                                    },
+                                },
+                            },
+                            {
+                                user: {
+                                    lastName: {
+                                        contains: 'john@example.com',
+                                        mode: 'insensitive',
+                                    },
+                                },
+                            },
+                            {
+                                user: {
+                                    email: {
+                                        contains: 'john@example.com',
+                                        mode: 'insensitive',
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                    skip: 5,
+                    take: 5,
+                    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+                }),
+            );
+        });
+
+        it('should not add the full-name AND search branch for single-word searches', async () => {
+            prisma.order.findMany.mockResolvedValue([mockOrder]);
+            prisma.order.count.mockResolvedValue(1);
+
+            await service.getOrders('admin-1', Role.ADMIN, {
+                search: 'John',
+            });
+
+            expect(prisma.order.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: {
+                        OR: [
+                            {
+                                orderNumber: {
+                                    contains: 'John',
+                                    mode: 'insensitive',
+                                },
+                            },
+                            {
+                                user: {
+                                    firstName: {
+                                        contains: 'John',
+                                        mode: 'insensitive',
+                                    },
+                                },
+                            },
+                            {
+                                user: {
+                                    lastName: {
+                                        contains: 'John',
+                                        mode: 'insensitive',
+                                    },
+                                },
+                            },
+                            {
+                                user: {
+                                    email: {
+                                        contains: 'John',
+                                        mode: 'insensitive',
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                }),
+            );
+        });
+
+        it('should add the full-name AND search branch for multi-word searches', async () => {
+            prisma.order.findMany.mockResolvedValue([mockOrder]);
+            prisma.order.count.mockResolvedValue(1);
+
+            await service.getOrders('admin-1', Role.ADMIN, {
+                search: 'John Doe',
+            });
+
+            expect(prisma.order.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: {
+                        OR: [
+                            {
+                                orderNumber: {
+                                    contains: 'John Doe',
+                                    mode: 'insensitive',
+                                },
+                            },
+                            {
+                                user: {
+                                    firstName: {
+                                        contains: 'John Doe',
+                                        mode: 'insensitive',
+                                    },
+                                },
+                            },
+                            {
+                                user: {
+                                    lastName: {
+                                        contains: 'John Doe',
+                                        mode: 'insensitive',
+                                    },
+                                },
+                            },
+                            {
+                                user: {
+                                    email: {
+                                        contains: 'John Doe',
+                                        mode: 'insensitive',
+                                    },
+                                },
+                            },
+                            {
+                                user: {
+                                    AND: [
+                                        {
+                                            firstName: {
+                                                contains: 'John',
+                                                mode: 'insensitive',
+                                            },
+                                        },
+                                        {
+                                            lastName: {
+                                                contains: 'Doe',
+                                                mode: 'insensitive',
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    },
                 }),
             );
         });
@@ -273,6 +461,8 @@ describe('OrderService', () => {
             await expect(
                 service.cancelOrder('order-1', 'user-1'),
             ).rejects.toThrow(BadRequestException);
+
+            expect(prisma.order.update).not.toHaveBeenCalled();
         });
 
         it('should throw NotFoundException when order not found', async () => {
@@ -306,7 +496,10 @@ describe('OrderService', () => {
             prisma.order.findUnique.mockResolvedValue(null);
 
             await expect(
-                service.updateOrderStatus('nonexistent', OrderStatus.PROCESSING),
+                service.updateOrderStatus(
+                    'nonexistent',
+                    OrderStatus.PROCESSING,
+                ),
             ).rejects.toThrow(NotFoundException);
         });
     });

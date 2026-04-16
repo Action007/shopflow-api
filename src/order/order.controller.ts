@@ -9,15 +9,18 @@ import {
     Query,
     UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrderService } from './order.service';
 import { PlaceOrderDto } from './dto/place-order.dto';
-import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { Role } from '@prisma/client';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { UpdateOrderStatusDto } from 'src/order/dto/update-order-status-dto';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { OrderQueryDto } from './dto/order-query.dto';
 
+@ApiTags('Orders')
+@ApiBearerAuth()
 @Controller('orders')
 export class OrderController {
     constructor(private readonly orderService: OrderService) {}
@@ -31,14 +34,22 @@ export class OrderController {
     }
 
     @Get()
-    async getMyOrders(
-        @CurrentUser() user: { id: string },
-        @Query() query: PaginationQueryDto,
+    @ApiOperation({
+        summary:
+            'Get paginated orders. Customers see their own orders; admins can browse all orders.',
+    })
+    async getOrders(
+        @CurrentUser() user: { id: string; role: Role },
+        @Query() query: OrderQueryDto,
     ) {
-        return this.orderService.getMyOrders(user.id, query);
+        return this.orderService.getOrders(user.id, user.role, query);
     }
 
     @Get(':id')
+    @ApiOperation({
+        summary:
+            'Get order details. Customers can access their own orders; admins can access any order.',
+    })
     async getOrderById(
         @CurrentUser() user: { id: string; role: Role },
         @Param('id', ParseUUIDPipe) id: string,

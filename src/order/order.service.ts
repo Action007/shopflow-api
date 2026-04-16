@@ -5,18 +5,16 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { Order, OrderStatus, Prisma, Role } from '@prisma/client';
-import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { PaginatedResult } from 'src/common/types/paginated-result.type';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PlaceOrderDto } from './dto/place-order.dto';
-import {
-    CART_INCLUDE,
-    ORDER_INCLUDE,
-} from 'src/cart/types/cart-with-items.type';
+import { CART_INCLUDE } from 'src/cart/types/cart-with-items.type';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
 import { buildPaginationMeta } from 'src/common/utils/paginate';
 import { randomUUID } from 'crypto';
 import { Decimal } from '@prisma/client/runtime/library';
+import { OrderQueryDto } from './dto/order-query.dto';
+import { ORDER_INCLUDE, OrderResponse } from './types/order-response.type';
 
 @Injectable()
 export class OrderService {
@@ -25,16 +23,22 @@ export class OrderService {
         OrderStatus[]
     > = {
         [OrderStatus.PENDING]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-        [OrderStatus.PROCESSING]: [
-            OrderStatus.SHIPPED,
-            OrderStatus.CANCELLED,
-        ],
+        [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
         [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED],
         [OrderStatus.DELIVERED]: [],
         [OrderStatus.CANCELLED]: [],
     };
 
     constructor(private readonly prisma: PrismaService) {}
+
+    private isTransitionAllowed(
+        currentStatus: OrderStatus,
+        nextStatus: OrderStatus,
+    ): boolean {
+        return OrderService.VALID_TRANSITIONS[currentStatus].includes(
+            nextStatus,
+        );
+    }
 
     async placeOrder(userId: string, dto: PlaceOrderDto): Promise<Order> {
         return this.prisma.$transaction(async (tx) => {
@@ -99,21 +103,26 @@ export class OrderService {
         });
     }
 
-    async getMyOrders(
+    async getOrders(
         userId: string,
-        query: PaginationQueryDto,
-    ): Promise<PaginatedResult<Order>> {
-        const { page = 1, limit = 10 } = query;
-
-        const where: Prisma.OrderWhereInput = { userId };
+        userRole: Role,
+        query: OrderQueryDto,
+    ): Promise<PaginatedResult<OrderResponse>> {
+        const {
+            page = 1,
+            limit = 10,
+            sortBy = 'createdAt',
+            sortOrder = 'desc',
+        } = query;
+        const where = this.buildOrderWhereInput(userId, userRole, query);
 
         const [items, total] = await Promise.all([
             this.prisma.order.findMany({
                 where,
-                include: { items: true },
+                include: ORDER_INCLUDE,
                 skip: (page - 1) * limit,
                 take: limit,
-                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+                orderBy: [{ [sortBy]: sortOrder }, { id: sortOrder }],
             }),
             this.prisma.order.count({ where }),
         ]);
@@ -128,7 +137,7 @@ export class OrderService {
         orderId: string,
         userId: string,
         userRole: Role,
-    ): Promise<Order> {
+    ): Promise<OrderResponse> {
         const order = await this.prisma.order.findUnique({
             where: { id: orderId },
             include: ORDER_INCLUDE,
@@ -162,7 +171,9 @@ export class OrderService {
                 throw new ForbiddenException();
             }
 
-            if (order.status !== OrderStatus.PENDING) {
+            if (
+                !this.isTransitionAllowed(order.status, OrderStatus.CANCELLED)
+            ) {
                 throw new BadRequestException(
                     ServiceErrorMessage.ORDER_NOT_CANCELLABLE,
                 );
@@ -197,8 +208,7 @@ export class OrderService {
             throw new NotFoundException(ServiceErrorMessage.ORDER_NOT_FOUND);
         }
 
-        const allowedStatuses = OrderService.VALID_TRANSITIONS[order.status];
-        if (!allowedStatuses.includes(status)) {
+        if (!this.isTransitionAllowed(order.status, status)) {
             throw new BadRequestException(
                 `Cannot transition from ${order.status} to ${status}`,
             );
@@ -209,5 +219,105 @@ export class OrderService {
             data: { status },
             include: { items: true },
         });
+    }
+
+    private buildOrderWhereInput(
+        userId: string,
+        userRole: Role,
+        query: OrderQueryDto,
+    ): Prisma.OrderWhereInput {
+        const where: Prisma.OrderWhereInput = {};
+
+        if (userRole !== Role.ADMIN) {
+            where.userId = userId;
+        } else if (query.userId) {
+            where.userId = query.userId;
+        }
+
+        if (query.status) {
+            where.status = query.status;
+        }
+
+        if (query.search) {
+            const searchTerms = query.search.split(/\s+/).filter(Boolean);
+            where.OR = [
+                {
+                    orderNumber: {
+                        contains: query.search,
+                        mode: 'insensitive',
+                    },
+                },
+                {
+                    user: {
+                        firstName: {
+                            contains: query.search,
+                            mode: 'insensitive',
+                        },
+                    },
+                },
+                {
+                    user: {
+                        lastName: {
+                            contains: query.search,
+                            mode: 'insensitive',
+                        },
+                    },
+                },
+                {
+                    user: {
+                        email: {
+                            contains: query.search,
+                            mode: 'insensitive',
+                        },
+                    },
+                },
+            ];
+
+            if (searchTerms.length >= 2) {
+                where.OR.push({
+                    user: {
+                        AND: [
+                            {
+                                firstName: {
+                                    contains: searchTerms[0],
+                                    mode: 'insensitive',
+                                },
+                            },
+                            {
+                                lastName: {
+                                    contains: searchTerms.slice(1).join(' '),
+                                    mode: 'insensitive',
+                                },
+                            },
+                        ],
+                    },
+                });
+            }
+        }
+
+        if (query.dateFrom || query.dateTo) {
+            where.createdAt = {};
+
+            if (query.dateFrom) {
+                where.createdAt.gte = new Date(query.dateFrom);
+            }
+
+            if (query.dateTo) {
+                where.createdAt.lte = this.normalizeDateToEndOfDay(
+                    query.dateTo,
+                );
+            }
+        }
+
+        return where;
+    }
+
+    private normalizeDateToEndOfDay(value: string): Date {
+        const hasExplicitTime = value.includes('T');
+        if (hasExplicitTime) {
+            return new Date(value);
+        }
+
+        return new Date(`${value}T23:59:59.999Z`);
     }
 }

@@ -268,16 +268,19 @@ Example upload flow:
 
 ### Orders
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/v1/orders` | JWT | Place order from cart |
-| GET | `/api/v1/orders` | JWT | Get my paginated orders |
-| GET | `/api/v1/orders/:id` | JWT (owner/admin) | Get order by ID |
-| POST | `/api/v1/orders/:id/cancel` | JWT (owner) | Cancel pending order |
-| PATCH | `/api/v1/orders/:id/status` | JWT + ADMIN | Update order status |
+| Method | Path                        | Auth              | Description                                 |
+| ------ | --------------------------- | ----------------- | ------------------------------------------- |
+| POST   | `/api/v1/orders`            | JWT               | Place order from cart                       |
+| GET    | `/api/v1/orders`            | JWT               | Get paginated orders with role-aware access |
+| GET    | `/api/v1/orders/:id`        | JWT (owner/admin) | Get order by ID                             |
+| POST   | `/api/v1/orders/:id/cancel` | JWT (owner)       | Cancel pending order                        |
+| PATCH  | `/api/v1/orders/:id/status` | JWT + ADMIN       | Update order status                         |
 
 Notes:
 
+- `GET /orders` returns only the current customer's orders for `CUSTOMER` users.
+- `GET /orders` returns all orders for `ADMIN` users and supports `page`, `limit`, `status`, `search`, `userId`, `dateFrom`, `dateTo`, `sortBy`, and `sortOrder`.
+- Order list and order detail responses include the customer summary (`id`, `firstName`, `lastName`, `email`).
 - Order status updates are restricted to valid transitions.
 
 ## Validation and Security

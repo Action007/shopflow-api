@@ -535,86 +535,230 @@ async function main() {
 
     console.log(`Created ${products.length} products with local upload-backed image URLs`);
 
-    const iphone17Pro = products.find((product) => product.name === 'iPhone 17 Pro');
-    const macbookPro = products.find((product) => product.name === 'MacBook Pro M4');
-    const airpodsPro = products.find((product) => product.name === 'AirPods Pro 2');
+    const productByName = new Map(products.map((product) => [product.name, product]));
+    const getProduct = (name: string) => {
+        const product = productByName.get(name);
+        if (!product) {
+            throw new Error(`Missing seeded product required for relational fixtures: ${name}`);
+        }
+        return product;
+    };
 
-    if (!iphone17Pro || !macbookPro || !airpodsPro) {
-        throw new Error('Missing seeded products required for order creation');
-    }
+    const iphone17Pro = getProduct('iPhone 17 Pro');
+    const macbookPro = getProduct('MacBook Pro M4');
+    const airpodsPro = getProduct('AirPods Pro 2');
+    const galaxyWatch = getProduct('Samsung Galaxy Watch 7');
+    const keychronK6 = getProduct('Keychron K6 Mechanical Keyboard');
+    const dellMonitor = getProduct('Dell UltraSharp 27 Monitor');
+    const jblCharge = getProduct('JBL Charge 5');
+    const ps5 = getProduct('PlayStation 5');
+    const hueBulb = getProduct('Philips Hue Smart Bulb');
+    const mxMaster = getProduct('Logitech MX Master 3S Mouse');
+    const ringCam = getProduct('Ring Indoor Cam');
 
-    await prisma.order.create({
+    await prisma.cart.create({
         data: {
-            orderNumber: 'ORD-2025-0001',
             userId: customer.id,
-            status: OrderStatus.DELIVERED,
-            totalAmount: iphone17Pro.price,
-            shippingAddress: '123 Main Street, New York, NY 10001, USA',
-            paidAt: new Date('2025-03-10T10:00:00Z'),
-            createdAt: new Date('2025-03-10T09:00:00Z'),
+            items: {
+                create: [
+                    {
+                        productId: hueBulb.id,
+                        quantity: 2,
+                        priceAtAdd: hueBulb.price,
+                    },
+                    {
+                        productId: keychronK6.id,
+                        quantity: 1,
+                        priceAtAdd: keychronK6.price,
+                    },
+                ],
+            },
+        },
+    });
+
+    await prisma.cart.create({
+        data: {
+            userId: customer2.id,
+            items: {
+                create: [
+                    {
+                        productId: jblCharge.id,
+                        quantity: 1,
+                        priceAtAdd: jblCharge.price,
+                    },
+                    {
+                        productId: ringCam.id,
+                        quantity: 1,
+                        priceAtAdd: ringCam.price,
+                    },
+                ],
+            },
+        },
+    });
+
+    await prisma.wishlist.create({
+        data: {
+            userId: customer.id,
+            items: {
+                create: [
+                    {
+                        productId: ps5.id,
+                    },
+                    {
+                        productId: dellMonitor.id,
+                    },
+                ],
+            },
+        },
+    });
+
+    await prisma.wishlist.create({
+        data: {
+            userId: customer2.id,
             items: {
                 create: [
                     {
                         productId: iphone17Pro.id,
-                        quantity: 1,
-                        priceAtPurchase: iphone17Pro.price,
-                        productNameAtPurchase: iphone17Pro.name,
+                    },
+                    {
+                        productId: macbookPro.id,
+                    },
+                    {
+                        productId: mxMaster.id,
                     },
                 ],
             },
         },
     });
 
-    await prisma.order.create({
-        data: {
+    type SeedOrderItem = {
+        product: (typeof products)[number];
+        quantity: number;
+    };
+
+    type SeedOrder = {
+        orderNumber: string;
+        userId: string;
+        status: OrderStatus;
+        shippingAddress: string;
+        createdAt: Date;
+        paidAt?: Date;
+        items: SeedOrderItem[];
+    };
+
+    const ordersSeed: SeedOrder[] = [
+        {
+            orderNumber: 'ORD-2025-0001',
+            userId: customer.id,
+            status: OrderStatus.DELIVERED,
+            shippingAddress: '123 Main Street, New York, NY 10001, USA',
+            paidAt: new Date('2025-03-10T10:00:00Z'),
+            createdAt: new Date('2025-03-10T09:00:00Z'),
+            items: [{ product: iphone17Pro, quantity: 1 }],
+        },
+        {
             orderNumber: 'ORD-2025-0002',
             userId: customer.id,
             status: OrderStatus.SHIPPED,
-            totalAmount: Number(macbookPro.price) + Number(airpodsPro.price),
             shippingAddress: '123 Main Street, New York, NY 10001, USA',
             paidAt: new Date('2025-04-01T14:00:00Z'),
             createdAt: new Date('2025-04-01T13:00:00Z'),
-            items: {
-                create: [
-                    {
-                        productId: macbookPro.id,
-                        quantity: 1,
-                        priceAtPurchase: macbookPro.price,
-                        productNameAtPurchase: macbookPro.name,
-                    },
-                    {
-                        productId: airpodsPro.id,
-                        quantity: 1,
-                        priceAtPurchase: airpodsPro.price,
-                        productNameAtPurchase: airpodsPro.name,
-                    },
-                ],
-            },
+            items: [
+                { product: macbookPro, quantity: 1 },
+                { product: airpodsPro, quantity: 1 },
+            ],
         },
-    });
-
-    await prisma.order.create({
-        data: {
+        {
             orderNumber: 'ORD-2025-0003',
             userId: customer.id,
             status: OrderStatus.PENDING,
-            totalAmount: Number(airpodsPro.price) * 2,
             shippingAddress: '123 Main Street, New York, NY 10001, USA',
-            createdAt: new Date(),
-            items: {
-                create: [
-                    {
-                        productId: airpodsPro.id,
-                        quantity: 2,
-                        priceAtPurchase: airpodsPro.price,
-                        productNameAtPurchase: airpodsPro.name,
-                    },
-                ],
-            },
+            createdAt: new Date('2025-04-16T09:30:00Z'),
+            items: [{ product: airpodsPro, quantity: 2 }],
         },
-    });
+        {
+            orderNumber: 'ORD-2025-0004',
+            userId: customer.id,
+            status: OrderStatus.PROCESSING,
+            shippingAddress: '123 Main Street, New York, NY 10001, USA',
+            paidAt: new Date('2025-04-12T12:00:00Z'),
+            createdAt: new Date('2025-04-12T11:15:00Z'),
+            items: [
+                { product: keychronK6, quantity: 1 },
+                { product: mxMaster, quantity: 1 },
+                { product: dellMonitor, quantity: 1 },
+            ],
+        },
+        {
+            orderNumber: 'ORD-2025-0005',
+            userId: customer2.id,
+            status: OrderStatus.DELIVERED,
+            shippingAddress: '45 Park Avenue, Brooklyn, NY 11201, USA',
+            paidAt: new Date('2025-02-18T16:45:00Z'),
+            createdAt: new Date('2025-02-18T15:30:00Z'),
+            items: [
+                { product: galaxyWatch, quantity: 1 },
+                { product: jblCharge, quantity: 1 },
+            ],
+        },
+        {
+            orderNumber: 'ORD-2025-0006',
+            userId: customer2.id,
+            status: OrderStatus.CANCELLED,
+            shippingAddress: '45 Park Avenue, Brooklyn, NY 11201, USA',
+            createdAt: new Date('2025-03-22T08:20:00Z'),
+            items: [{ product: ps5, quantity: 1 }],
+        },
+        {
+            orderNumber: 'ORD-2025-0007',
+            userId: customer2.id,
+            status: OrderStatus.SHIPPED,
+            shippingAddress: '45 Park Avenue, Brooklyn, NY 11201, USA',
+            paidAt: new Date('2025-04-08T09:10:00Z'),
+            createdAt: new Date('2025-04-08T08:40:00Z'),
+            items: [
+                { product: hueBulb, quantity: 4 },
+                { product: ringCam, quantity: 1 },
+            ],
+        },
+        {
+            orderNumber: 'ORD-2025-0008',
+            userId: customer2.id,
+            status: OrderStatus.PENDING,
+            shippingAddress: '45 Park Avenue, Brooklyn, NY 11201, USA',
+            createdAt: new Date('2025-04-16T10:15:00Z'),
+            items: [{ product: iphone17Pro, quantity: 1 }],
+        },
+    ];
 
-    console.log(`Created 3 orders for ${customer.email}`);
+    for (const order of ordersSeed) {
+        const totalAmount = order.items.reduce(
+            (sum, item) => sum + Number(item.product.price) * item.quantity,
+            0,
+        );
+
+        await prisma.order.create({
+            data: {
+                orderNumber: order.orderNumber,
+                userId: order.userId,
+                status: order.status,
+                totalAmount,
+                shippingAddress: order.shippingAddress,
+                paidAt: order.paidAt,
+                createdAt: order.createdAt,
+                items: {
+                    create: order.items.map((item) => ({
+                        productId: item.product.id,
+                        quantity: item.quantity,
+                        priceAtPurchase: item.product.price,
+                        productNameAtPurchase: item.product.name,
+                    })),
+                },
+            },
+        });
+    }
+
+    console.log(`Created ${ordersSeed.length} orders across ${customer.email} and ${customer2.email}`);
     console.log('\n✅ Seed complete!');
     console.log('─────────────────────────────────────');
     console.log('Admin:      admin@example.com / Password123!');
