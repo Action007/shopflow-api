@@ -6,11 +6,11 @@ import {
     NotFoundException,
     UnauthorizedException,
 } from '@nestjs/common';
+import { Prisma, Role, User } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Role, User } from '@prisma/client';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
 import { Security } from 'src/common/constants/security';
 import { USER_SELECT } from 'src/common/constants/user-select';
@@ -95,7 +95,10 @@ export class UserService {
                 select: USER_SELECT,
                 skip: (page - 1) * limit,
                 take: limit,
-                orderBy: { [sortBy]: sortOrder },
+                orderBy: [
+                    { [sortBy]: sortOrder } as Prisma.UserOrderByWithRelationInput,
+                    { id: sortOrder },
+                ],
             }),
             this.prisma.user.count({ where }),
         ]);

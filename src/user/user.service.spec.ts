@@ -208,7 +208,7 @@ describe('UserService', () => {
                 select: expect.objectContaining({ id: true, email: true }),
                 skip: 0,
                 take: 10,
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             });
         });
     });

@@ -16,6 +16,29 @@ export class ProductService {
         private readonly uploadService: UploadService,
     ) {}
 
+    private async getCategoryIdsForFilter(categoryId: string): Promise<string[]> {
+        const categoryIds = new Set<string>([categoryId]);
+        let parentIds = [categoryId];
+
+        while (parentIds.length > 0) {
+            const children = await this.prisma.category.findMany({
+                where: {
+                    parentId: { in: parentIds },
+                    deletedAt: null,
+                },
+                select: { id: true },
+            });
+
+            parentIds = children
+                .map(({ id }) => id)
+                .filter((id) => !categoryIds.has(id));
+
+            parentIds.forEach((id) => categoryIds.add(id));
+        }
+
+        return Array.from(categoryIds);
+    }
+
     async create(
         dto: CreateProductDto,
         currentUserId: string,
@@ -79,9 +102,13 @@ export class ProductService {
             search,
         } = query;
 
+        const categoryIds = categoryId
+            ? await this.getCategoryIdsForFilter(categoryId)
+            : null;
+
         const where: Prisma.ProductWhereInput = {
             deletedAt: null,
-            ...(categoryId && { categoryId }),
+            ...(categoryIds && { categoryId: { in: categoryIds } }),
             ...(minPrice !== undefined || maxPrice !== undefined
                 ? {
                       price: {
@@ -118,7 +145,10 @@ export class ProductService {
                 include: { category: true },
                 skip: (page - 1) * limit,
                 take: limit,
-                orderBy: { [sortBy]: sortOrder },
+                orderBy: [
+                    { [sortBy]: sortOrder } as Prisma.ProductOrderByWithRelationInput,
+                    { id: sortOrder },
+                ],
             }),
             this.prisma.product.count({ where }),
         ]);

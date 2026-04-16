@@ -113,7 +113,7 @@ export class OrderService {
                 include: { items: true },
                 skip: (page - 1) * limit,
                 take: limit,
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             }),
             this.prisma.order.count({ where }),
         ]);

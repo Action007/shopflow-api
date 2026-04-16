@@ -184,6 +184,7 @@ describe('OrderService', () => {
                     where: { userId: 'user-1' },
                     skip: 0,
                     take: 10,
+                    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 }),
             );
         });

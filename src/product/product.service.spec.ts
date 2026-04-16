@@ -187,6 +187,7 @@ describe('ProductService', () => {
         });
 
         it('should apply category filter when provided', async () => {
+            prisma.category.findMany.mockResolvedValue([]);
             prisma.product.findMany.mockResolvedValue([]);
             prisma.product.count.mockResolvedValue(0);
 
@@ -194,7 +195,45 @@ describe('ProductService', () => {
 
             expect(prisma.product.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    where: expect.objectContaining({ categoryId: 'cat-1' }),
+                    where: expect.objectContaining({
+                        categoryId: { in: ['cat-1'] },
+                    }),
+                }),
+            );
+        });
+
+        it('should include descendant categories when parent category filter is provided', async () => {
+            prisma.category.findMany
+                .mockResolvedValueOnce([{ id: 'cat-2' }, { id: 'cat-3' }])
+                .mockResolvedValueOnce([{ id: 'cat-4' }])
+                .mockResolvedValueOnce([]);
+            prisma.product.findMany.mockResolvedValue([]);
+            prisma.product.count.mockResolvedValue(0);
+
+            await service.findAll({ page: 1, limit: 10, categoryId: 'cat-1' });
+
+            expect(prisma.product.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        categoryId: {
+                            in: ['cat-1', 'cat-2', 'cat-3', 'cat-4'],
+                        },
+                    }),
+                }),
+            );
+        });
+
+        it('should use a stable secondary id sort for pagination', async () => {
+            prisma.product.findMany.mockResolvedValue([]);
+            prisma.product.count.mockResolvedValue(0);
+
+            await service.findAll({ page: 2, limit: 10 });
+
+            expect(prisma.product.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    skip: 10,
+                    take: 10,
+                    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 }),
             );
         });
