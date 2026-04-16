@@ -2,6 +2,9 @@
 
 A production-oriented e-commerce REST API built with NestJS, Prisma, and PostgreSQL.
 
+Swagger: https://shopflow-api-1fl0.onrender.com/api/docs
+Demo frontend: https://shopflow-web-pi.vercel.app/
+
 ## Tech Stack
 
 - Runtime: NestJS 11, TypeScript, Node.js 20
@@ -19,6 +22,7 @@ A production-oriented e-commerce REST API built with NestJS, Prisma, and Postgre
 - Product catalog with categories
 - Upload-backed product and profile images
 - Pagination, sorting, filtering, and search
+- Parent category filtering that includes descendant category products
 - Shopping cart and order placement
 - Per-user wishlist with duplicate protection
 - Transactional stock deduction on order creation
@@ -59,6 +63,7 @@ Useful URLs:
 - Swagger: `http://localhost:3000/api/docs`
 - Health: `http://localhost:3000/api/v1/health`
 - Uploaded files: `http://localhost:3000/uploads/<file-name>`
+- Demo frontend: `https://shopflow-web-pi.vercel.app/`
 
 ## Docker
 
@@ -87,6 +92,7 @@ Useful URLs:
 - Swagger: `http://localhost:3000/api/docs`
 - Health: `http://localhost:3000/api/v1/health`
 - PostgreSQL from host: `localhost:5433`
+- Demo frontend: `https://shopflow-web-pi.vercel.app/`
 
 Notes:
 
@@ -181,6 +187,7 @@ Notes:
 - Category names are globally unique in the current schema, not just unique per parent.
 - `GET /categories` returns only root categories, with non-deleted children and grandchildren nested under them.
 - Soft-deleted categories are excluded from category listing queries.
+- Filtering products by a parent `categoryId` includes products from that category and all of its descendants.
 
 ### Products
 
@@ -203,6 +210,7 @@ Notes:
 - Product creation requires `imageUploadId` instead of a raw `imageUrl`.
 - Product updates can also accept `imageUploadId` to replace the stored image.
 - Price fields are sent as decimal strings such as `"29.99"`.
+- Pagination uses a stable secondary sort by `id` to avoid duplicate items across pages when primary sort values tie.
 
 ### Cart
 
@@ -244,7 +252,7 @@ Notes:
 - `POST /uploads/images` expects `multipart/form-data` with a `file` field.
 - Accepted image types: `image/jpeg`, `image/png`, `image/webp`
 - Max file size: `5MB`
-- Upload responses return the upload record `id` and public `url`.
+- Upload responses return `id`, `originalName`, `mimeType`, `status`, and public `url`.
 - Uploads start in `PENDING` status and become `USED` when attached to a product or user profile.
 - Only `PENDING` uploads can be deleted directly.
 - `DELETE /uploads/:id` returns `204 No Content` on success.
@@ -308,6 +316,7 @@ Stricter throttling is applied to auth endpoints to reduce abuse and brute-force
 | `JWT_ACCESS_EXPIRATION` | No | `3600` | Access token TTL in seconds |
 | `JWT_REFRESH_EXPIRATION` | No | `604800` | Refresh token TTL in seconds |
 | `APP_BASE_URL` | Yes | — | Base URL used to build public upload URLs |
+| `UPLOAD_DIR` | No | `uploads` | Upload directory name; e2e tests use `uploads-test` to avoid touching real assets |
 | `PORT` | No | `3000` | App port |
 | `NODE_ENV` | No | `development` | Runtime environment |
 | `CORS_ORIGINS` | Yes | — | Comma-separated list of allowed frontend origins |
@@ -323,6 +332,7 @@ JWT_SECRET=your-secret-minimum-32-characters-long-here
 JWT_ACCESS_EXPIRATION=3600
 JWT_REFRESH_EXPIRATION=604800
 APP_BASE_URL=http://localhost:3000
+UPLOAD_DIR=uploads
 CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 PORT=3000
 NODE_ENV=development
@@ -345,6 +355,7 @@ Notes:
 
 - E2E tests require a reachable PostgreSQL database.
 - CI runs PostgreSQL as a service container in GitHub Actions.
+- E2E tests use `UPLOAD_DIR=uploads-test`, so test cleanup does not remove files from the main `uploads/` directory.
 
 ## Seed Data
 
