@@ -2,8 +2,8 @@
 
 A production-oriented e-commerce REST API built with NestJS, Prisma, and PostgreSQL.
 
-Swagger: https://shopflow-api-1fl0.onrender.com/api/docs
-Demo frontend: https://shopflow-web-pi.vercel.app/
+- Swagger: https://shopflow-api-1fl0.onrender.com/api/docs
+- Demo frontend: https://shopflow-web-pi.vercel.app/
 
 ## Tech Stack
 
