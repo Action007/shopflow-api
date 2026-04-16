@@ -4,3 +4,4 @@ process.env.JWT_ACCESS_EXPIRATION ??= '3600';
 process.env.JWT_REFRESH_EXPIRATION ??= '604800';
 process.env.APP_BASE_URL ??= 'http://localhost:3000';
 process.env.CORS_ORIGINS ??= 'http://localhost:3000';
+process.env.UPLOAD_DIR ??= 'uploads-test';

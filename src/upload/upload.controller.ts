@@ -91,6 +91,9 @@ export class UploadController {
 
         return {
             id: upload.id,
+            originalName: upload.originalName,
+            mimeType: upload.mimeType,
+            status: upload.status,
             url: upload.url,
         };
     }

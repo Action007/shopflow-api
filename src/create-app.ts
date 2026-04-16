@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import express from 'express';
-import { join } from 'path';
+import { UPLOAD_DIR } from './upload/constants/upload.constants';
 
 export async function configureApp(
     app: INestApplication,
@@ -18,7 +18,7 @@ export async function configureApp(
     app.use(cookieParser());
     app.use(
         '/uploads',
-        express.static(join(process.cwd(), 'uploads'), {
+        express.static(UPLOAD_DIR, {
             setHeaders: (res) => {
                 res.setHeader(
                     'Cross-Origin-Resource-Policy',

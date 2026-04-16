@@ -20,7 +20,7 @@ describe('E-Commerce API (e2e)', () => {
     let customerRefreshToken: string;
     let customerUserId: string;
 
-    const uploadsDir = join(process.cwd(), 'uploads');
+    const uploadsDir = join(process.cwd(), process.env.UPLOAD_DIR ?? 'uploads');
     const pngFixture = Buffer.from(
         'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sWvyaAAAAAASUVORK5CYII=',
         'base64',
