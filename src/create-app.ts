@@ -20,10 +20,7 @@ export async function configureApp(
         '/uploads',
         express.static(UPLOAD_DIR, {
             setHeaders: (res) => {
-                res.setHeader(
-                    'Cross-Origin-Resource-Policy',
-                    'cross-origin',
-                );
+                res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
                 res.setHeader('Access-Control-Allow-Origin', '*');
             },
         }),
@@ -59,7 +56,26 @@ export async function configureApp(
         .setTitle('Shopflow API')
         .setDescription('Shopflow e-commerce API documentation')
         .setVersion('1.0.0')
-        .addBearerAuth()
+        .addBearerAuth(
+            {
+                type: 'http',
+                scheme: 'bearer',
+                bearerFormat: 'JWT',
+                description:
+                    'Paste access token received from /auth/login or /auth/register',
+            },
+            'access-token',
+        )
+        .addCookieAuth(
+            'refresh_token',
+            {
+                type: 'apiKey',
+                in: 'cookie',
+                description:
+                    'Refresh token cookie set by the client after login',
+            },
+            'refresh-token',
+        )
         .build();
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document);

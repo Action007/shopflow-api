@@ -11,6 +11,17 @@ import {
     BadRequestException,
     UnsupportedMediaTypeException,
 } from '@nestjs/common';
+import {
+    ApiBearerAuth,
+    ApiBody,
+    ApiConsumes,
+    ApiForbiddenResponse,
+    ApiNoContentResponse,
+    ApiNotFoundResponse,
+    ApiOperation,
+    ApiParam,
+    ApiTags,
+} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
@@ -22,12 +33,16 @@ import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
 import { UPLOAD_DIR } from './constants/upload.constants';
+import {
+    ApiEnvelopeResponse,
+    ApiErrorResponse,
+} from 'src/common/swagger/api-response.decorators';
+import {
+    ErrorResponseDto,
+    UploadDto,
+} from 'src/common/swagger/api-response.dto';
 
-const allowedMimeTypes = new Set([
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-]);
+const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const maxFileSize = 5 * 1024 * 1024;
 
@@ -38,6 +53,8 @@ type UploadedImageFile = {
     size: number;
 };
 
+@ApiTags('Uploads')
+@ApiBearerAuth('access-token')
 @Controller('uploads')
 export class UploadController {
     constructor(
@@ -48,6 +65,30 @@ export class UploadController {
     }
 
     @Post('images')
+    @ApiOperation({
+        summary: 'Upload an image file and create a pending upload record',
+    })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                file: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'JPEG, PNG, or WebP image up to 5MB',
+                },
+            },
+            required: ['file'],
+        },
+    })
+    @ApiEnvelopeResponse({
+        status: 201,
+        description: 'Image uploaded successfully',
+        type: UploadDto,
+    })
+    @ApiErrorResponse(400, 'No file uploaded or file is too large')
+    @ApiErrorResponse(415, 'Unsupported file type')
     @UseInterceptors(
         FileInterceptor('file', {
             storage: diskStorage({
@@ -100,14 +141,23 @@ export class UploadController {
 
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
+    @ApiOperation({ summary: 'Delete a pending upload by id' })
+    @ApiParam({ name: 'id', format: 'uuid' })
+    @ApiNoContentResponse({ description: 'Pending upload deleted' })
+    @ApiForbiddenResponse({
+        description:
+            'You can delete only your own uploads unless you are an admin',
+        type: ErrorResponseDto,
+    })
+    @ApiNotFoundResponse({
+        description: 'Upload not found',
+        type: ErrorResponseDto,
+    })
+    @ApiErrorResponse(400, 'Only pending uploads can be deleted')
     async deleteUpload(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: { id: string; role: Role },
     ): Promise<void> {
-        await this.uploadService.removePendingUpload(
-            id,
-            user.id,
-            user.role,
-        );
+        await this.uploadService.removePendingUpload(id, user.id, user.role);
     }
 }
