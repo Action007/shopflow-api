@@ -56,10 +56,6 @@ class EnvironmentVariables {
     @IsBoolean()
     TRUST_PROXY: boolean = false;
 
-    @Transform(({ value }) => toBoolean(value))
-    @IsBoolean()
-    CF_IPCOUNTRY_TRUSTED: boolean = false;
-
     @IsString()
     @IsNotEmpty()
     UPLOAD_DIR: string = 'uploads';

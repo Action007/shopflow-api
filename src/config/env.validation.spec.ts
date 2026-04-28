@@ -13,23 +13,19 @@ describe('env.validation', () => {
             PORT: '3000',
             CORS_ORIGINS: 'http://localhost:3000',
             TRUST_PROXY: 'false',
-            CF_IPCOUNTRY_TRUSTED: 'false',
             UPLOAD_DIR: 'uploads',
             ...overrides,
         };
     }
 
-    it('should transform TRUST_PROXY and CF_IPCOUNTRY_TRUSTED string values to booleans', () => {
+    it('should transform TRUST_PROXY string values to booleans', () => {
         const validated = validate(
             createConfig({
                 TRUST_PROXY: 'true',
-                CF_IPCOUNTRY_TRUSTED: 'true',
             }),
         );
 
         expect(validated.TRUST_PROXY).toBe(true);
         expect(typeof validated.TRUST_PROXY).toBe('boolean');
-        expect(validated.CF_IPCOUNTRY_TRUSTED).toBe(true);
-        expect(typeof validated.CF_IPCOUNTRY_TRUSTED).toBe('boolean');
     });
 });

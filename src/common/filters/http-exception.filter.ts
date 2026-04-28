@@ -157,7 +157,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
             durationMs: durationMs ?? 0,
             userId: requestContext.userId,
             ip: requestContext.ip || requestContext.forwardedFor || requestContext.realIp,
-            country: requestContext.country,
             deviceType: requestContext.deviceType,
             requestId,
             userAgent: requestContext.userAgent,

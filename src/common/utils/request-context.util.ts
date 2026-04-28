@@ -1,12 +1,10 @@
 import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
-import geoip from 'geoip-lite';
 
 type HeaderValue = string | string[] | undefined;
 const REQUEST_START_TIME_KEY = Symbol.for('shopflow.requestStartTime');
 const REQUEST_ID_REGEX = /^[A-Za-z0-9._:-]{8,128}$/;
 const USER_AGENT_MAX_LENGTH = 40;
-const TRUST_CF_IPCOUNTRY = process.env.CF_IPCOUNTRY_TRUSTED === 'true';
 
 type RequestWithUser = Request & {
     [REQUEST_START_TIME_KEY]?: number;
@@ -62,7 +60,6 @@ export function getRequestContext(
         ip: request.ip,
         forwardedFor,
         realIp,
-        country: getCountry(request),
         userAgent,
         deviceType: detectDeviceType(userAgent),
         userId: request.user?.id || request.user?.sub,
@@ -93,7 +90,6 @@ export function formatRequestLogLine(params: {
     durationMs: number;
     userId?: string;
     ip?: string;
-    country?: string;
     deviceType?: string;
     requestId: string;
     userAgent: string;
@@ -106,7 +102,6 @@ export function formatRequestLogLine(params: {
         durationMs,
         userId,
         ip,
-        country,
         deviceType,
         requestId,
         userAgent,
@@ -117,7 +112,6 @@ export function formatRequestLogLine(params: {
         route ? `route=${route}` : undefined,
         userId ? `user=${userId}` : undefined,
         ip ? `ip=${ip}` : undefined,
-        country ? `country=${country}` : undefined,
         deviceType && deviceType !== 'unknown'
             ? `device=${deviceType}`
             : undefined,
@@ -202,59 +196,6 @@ function normalizeRouteSegment(
 
 function joinRouteSegments(...segments: Array<string | undefined>): string {
     return `/${segments.filter(Boolean).join('/')}`;
-}
-
-function getCountry(request: RequestWithUser): string | undefined {
-    const normalizedIp = normalizeLookupIp(request.ip);
-    const forwardedFor = normalizeHeaderValue(
-        request.headers['x-forwarded-for'],
-    );
-
-    console.log('[request-context] getCountry debug', {
-        requestIp: request.ip,
-        normalizedIp,
-        forwardedFor,
-    });
-
-    if (!normalizedIp || isLoopbackIp(normalizedIp)) {
-        return undefined;
-    }
-
-    const cfIpCountry = TRUST_CF_IPCOUNTRY
-        ? normalizeCountryCode(
-              normalizeHeaderValue(request.headers['cf-ipcountry']),
-          )
-        : undefined;
-
-    if (cfIpCountry) {
-        return cfIpCountry;
-    }
-
-    return normalizeCountryCode(geoip.lookup(normalizedIp)?.country);
-}
-
-function normalizeLookupIp(ip?: string): string | undefined {
-    if (!ip) {
-        return undefined;
-    }
-
-    return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
-}
-
-function isLoopbackIp(ip: string): boolean {
-    return ip === '127.0.0.1' || ip === '::1';
-}
-
-function normalizeCountryCode(country?: string): string | undefined {
-    if (!country) {
-        return undefined;
-    }
-
-    const normalizedCountry = country.trim().toUpperCase();
-
-    return /^[A-Z]{2}$/.test(normalizedCountry)
-        ? normalizedCountry
-        : undefined;
 }
 
 function truncateUserAgent(userAgent: string): string {

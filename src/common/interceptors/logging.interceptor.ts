@@ -57,7 +57,6 @@ export class LoggingInterceptor implements NestInterceptor {
                             durationMs: duration,
                             userId: requestContext.userId,
                             ip: requestContext.ip,
-                            country: requestContext.country,
                             deviceType: requestContext.deviceType,
                             requestId,
                             userAgent: requestContext.userAgent,
