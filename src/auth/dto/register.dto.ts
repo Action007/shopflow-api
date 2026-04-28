@@ -10,19 +10,19 @@ import { ApiProperty } from '@nestjs/swagger';
 import { ValidationMessage } from 'src/common/constants/validation-messages';
 
 export class RegisterDto {
-    @ApiProperty({ example: 'Viktor', maxLength: 50 })
+    @ApiProperty({ example: 'John', maxLength: 50 })
     @IsString()
     @IsNotEmpty()
     @MaxLength(50)
     firstName: string;
 
-    @ApiProperty({ example: 'Moskalev', maxLength: 50 })
+    @ApiProperty({ example: 'Doe', maxLength: 50 })
     @IsString()
     @IsNotEmpty()
     @MaxLength(50)
     lastName: string;
 
-    @ApiProperty({ example: 'viktor@example.com' })
+    @ApiProperty({ example: 'john.doe@example.com' })
     @IsEmail()
     email: string;
 

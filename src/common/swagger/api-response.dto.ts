@@ -76,13 +76,13 @@ export class UserDto {
     @ApiProperty({ format: 'uuid' })
     id: string;
 
-    @ApiProperty()
+    @ApiProperty({ example: 'John' })
     firstName: string;
 
-    @ApiProperty()
+    @ApiProperty({ example: 'Doe' })
     lastName: string;
 
-    @ApiProperty()
+    @ApiProperty({ example: 'john.doe@example.com' })
     email: string;
 
     @ApiPropertyOptional({
@@ -209,13 +209,13 @@ export class OrderUserDto {
     @ApiProperty({ format: 'uuid' })
     id: string;
 
-    @ApiProperty()
+    @ApiProperty({ example: 'John' })
     firstName: string;
 
-    @ApiProperty()
+    @ApiProperty({ example: 'Doe' })
     lastName: string;
 
-    @ApiProperty()
+    @ApiProperty({ example: 'john.doe@example.com' })
     email: string;
 }
 
