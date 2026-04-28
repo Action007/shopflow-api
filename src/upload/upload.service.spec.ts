@@ -3,6 +3,7 @@ import {
     ForbiddenException,
     NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Role, UploadStatus } from '@prisma/client';
 import { promises as fs } from 'fs';
@@ -16,6 +17,7 @@ import {
 describe('UploadService', () => {
     let service: UploadService;
     let prisma: MockPrismaService;
+    let configService: { getOrThrow: jest.Mock };
     let accessSpy: jest.SpiedFunction<typeof fs.access>;
     let unlinkSpy: jest.SpiedFunction<typeof fs.unlink>;
 
@@ -34,6 +36,9 @@ describe('UploadService', () => {
 
     beforeEach(async () => {
         prisma = createMockPrismaService();
+        configService = {
+            getOrThrow: jest.fn().mockReturnValue('uploads-test'),
+        };
         accessSpy = jest.spyOn(fs, 'access').mockResolvedValue(undefined);
         unlinkSpy = jest.spyOn(fs, 'unlink').mockResolvedValue();
 
@@ -41,6 +46,7 @@ describe('UploadService', () => {
             providers: [
                 UploadService,
                 { provide: PrismaService, useValue: prisma },
+                { provide: ConfigService, useValue: configService },
             ],
         }).compile();
 
@@ -170,10 +176,10 @@ describe('UploadService', () => {
             );
 
             expect(accessSpy).toHaveBeenCalledWith(
-                expect.stringContaining('/uploads/stored-avatar.png'),
+                expect.stringContaining('/uploads-test/stored-avatar.png'),
             );
             expect(unlinkSpy).toHaveBeenCalledWith(
-                expect.stringContaining('/uploads/stored-avatar.png'),
+                expect.stringContaining('/uploads-test/stored-avatar.png'),
             );
             expect(prisma.upload.delete).toHaveBeenCalledWith({
                 where: { id: 'upload-1' },
@@ -205,10 +211,10 @@ describe('UploadService', () => {
             );
 
             expect(accessSpy).toHaveBeenCalledWith(
-                expect.stringContaining('/uploads/stored-avatar.png'),
+                expect.stringContaining('/uploads-test/stored-avatar.png'),
             );
             expect(unlinkSpy).toHaveBeenCalledWith(
-                expect.stringContaining('/uploads/stored-avatar.png'),
+                expect.stringContaining('/uploads-test/stored-avatar.png'),
             );
         });
 

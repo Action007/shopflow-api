@@ -2,20 +2,27 @@ import {
     BadRequestException,
     ForbiddenException,
     Injectable,
+    Logger,
     NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, UploadStatus, Role } from '@prisma/client';
 import { promises as fs } from 'fs';
 import { basename, join } from 'path';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
-import { UPLOAD_DIR } from './constants/upload.constants';
+import { getUploadDirPath } from './constants/upload.constants';
 
 type StoredUpload = Prisma.UploadGetPayload<Record<string, never>>;
 
 @Injectable()
 export class UploadService {
-    constructor(private readonly prisma: PrismaService) {}
+    private readonly logger = new Logger(UploadService.name);
+
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly configService: ConfigService,
+    ) {}
 
     async createImageUpload(params: {
         file: any;
@@ -99,13 +106,13 @@ export class UploadService {
             );
         }
 
-        const filePath = join(UPLOAD_DIR, upload.fileName);
+        const filePath = join(this.getUploadDir(), upload.fileName);
 
         try {
             await fs.access(filePath);
             await fs.unlink(filePath);
-        } catch (err) {
-            console.warn('File not found or already deleted:', filePath);
+        } catch {
+            this.logger.warn(`File not found or already deleted: ${filePath}`);
         }
 
         await this.prisma.upload.delete({
@@ -117,13 +124,13 @@ export class UploadService {
         const fileName = this.getStoredFileName(fileUrl);
         if (!fileName) return;
 
-        const filePath = join(UPLOAD_DIR, fileName);
+        const filePath = join(this.getUploadDir(), fileName);
 
         try {
             await fs.access(filePath);
             await fs.unlink(filePath);
         } catch {
-            console.warn('File not found:', filePath);
+            this.logger.warn(`File not found: ${filePath}`);
         }
     }
 
@@ -138,5 +145,11 @@ export class UploadService {
         } catch {
             return null;
         }
+    }
+
+    private getUploadDir(): string {
+        return getUploadDirPath(
+            this.configService.getOrThrow<string>('UPLOAD_DIR'),
+        );
     }
 }

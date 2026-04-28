@@ -4,11 +4,15 @@ import {
     ExecutionContext,
     CallHandler,
     Logger,
-    HttpException,
-    HttpStatus,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import {
+    ensureRequestId,
+    formatRequestLogLine,
+    getRequestContext,
+    setRequestStartTime,
+} from '../utils/request-context.util';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
@@ -16,17 +20,30 @@ export class LoggingInterceptor implements NestInterceptor {
 
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
         const req = context.switchToHttp().getRequest();
+        const res = context.switchToHttp().getResponse();
         const method = req.method;
-        const url = req.url;
+        const url = req.originalUrl || req.url;
         const start = Date.now();
+        const requestId = ensureRequestId(req, res);
+        setRequestStartTime(req, start);
 
         return next.handle().pipe(
             tap({
                 next: () => {
-                    const res = context.switchToHttp().getResponse();
                     const duration = Date.now() - start;
+                    const requestContext = getRequestContext(req, requestId);
                     this.logger.log(
-                        `${method} ${url} -> ${res.statusCode} (${duration}ms)`,
+                        formatRequestLogLine({
+                            statusCode: res.statusCode,
+                            method,
+                            url,
+                            durationMs: duration,
+                            userId: requestContext.userId,
+                            ip: requestContext.ip,
+                            deviceType: requestContext.deviceType,
+                            requestId,
+                            userAgent: requestContext.userAgent,
+                        }),
                     );
                 },
             }),

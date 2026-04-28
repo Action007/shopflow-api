@@ -1,24 +1,34 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+    BadRequestException,
+    ValidationError,
+    ValidationPipe,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import express from 'express';
-import { UPLOAD_DIR } from './upload/constants/upload.constants';
+import { ErrorMessage } from './common/constants/error-messages';
+import { getUploadDirPath } from './upload/constants/upload.constants';
 
 export async function configureApp(
-    app: INestApplication,
-): Promise<INestApplication> {
+    app: NestExpressApplication,
+): Promise<NestExpressApplication> {
     const configService = app.get(ConfigService);
+    const uploadDir = getUploadDirPath(
+        configService.getOrThrow<string>('UPLOAD_DIR'),
+    );
     app.setGlobalPrefix('api/v1');
+    app.set('trust proxy', configService.get<boolean>('TRUST_PROXY') ?? false);
 
     app.use(helmet());
     app.use(compression());
     app.use(cookieParser());
     app.use(
         '/uploads',
-        express.static(UPLOAD_DIR, {
+        express.static(uploadDir, {
             setHeaders: (res) => {
                 res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
                 res.setHeader('Access-Control-Allow-Origin', '*');
@@ -49,6 +59,11 @@ export async function configureApp(
             forbidNonWhitelisted: true,
             transform: true,
             transformOptions: { enableImplicitConversion: true },
+            exceptionFactory: (errors: ValidationError[]) =>
+                new BadRequestException({
+                    message: ErrorMessage.VALIDATION_FAILED,
+                    errors: formatValidationErrors(errors),
+                }),
         }),
     );
 
@@ -83,4 +98,26 @@ export async function configureApp(
     SwaggerModule.setup('api/docs', app, document);
 
     return app;
+}
+
+function formatValidationErrors(
+    validationErrors: ValidationError[],
+    parentPath = '',
+): Record<string, string[]> {
+    return validationErrors.reduce<Record<string, string[]>>((acc, error) => {
+        const path = parentPath
+            ? `${parentPath}.${error.property}`
+            : error.property;
+        const fieldErrors = Object.values(error.constraints ?? {});
+
+        if (fieldErrors.length > 0) {
+            acc[path] = fieldErrors;
+        }
+
+        if (error.children?.length) {
+            Object.assign(acc, formatValidationErrors(error.children, path));
+        }
+
+        return acc;
+    }, {});
 }

@@ -1,5 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import {
+    IsBoolean,
     IsEnum,
     IsInt,
     IsNotEmpty,
@@ -46,6 +47,13 @@ class EnvironmentVariables {
     @IsString()
     @IsNotEmpty()
     CORS_ORIGINS: string;
+
+    @IsBoolean()
+    TRUST_PROXY: boolean = false;
+
+    @IsString()
+    @IsNotEmpty()
+    UPLOAD_DIR: string = 'uploads';
 }
 
 export function validate(config: Record<string, unknown>) {

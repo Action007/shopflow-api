@@ -26,14 +26,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { diskStorage } from 'multer';
-import { randomUUID } from 'crypto';
-import { extname } from 'path';
-import { mkdirSync } from 'fs';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
 import { ServiceErrorMessage } from 'src/common/constants/service-error-messages';
-import { UPLOAD_DIR } from './constants/upload.constants';
 import {
     ApiEnvelopeResponse,
     ApiErrorResponse,
@@ -42,10 +37,6 @@ import {
     ErrorResponseDto,
     UploadDto,
 } from 'src/common/swagger/api-response.dto';
-
-const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
-
-const maxFileSize = 5 * 1024 * 1024;
 
 type UploadedImageFile = {
     originalname: string;
@@ -61,9 +52,7 @@ export class UploadController {
     constructor(
         private readonly uploadService: UploadService,
         private readonly configService: ConfigService,
-    ) {
-        mkdirSync(UPLOAD_DIR, { recursive: true });
-    }
+    ) {}
 
     @Post('images')
     @ApiOperation({
@@ -94,29 +83,7 @@ export class UploadController {
         description: 'Missing or invalid access token',
         type: ErrorResponseDto,
     })
-    @UseInterceptors(
-        FileInterceptor('file', {
-            storage: diskStorage({
-                destination: UPLOAD_DIR,
-                filename: (_req, file, callback) => {
-                    const uniqueName = `${randomUUID()}${extname(file.originalname).toLowerCase()}`;
-                    callback(null, uniqueName);
-                },
-            }),
-            limits: { fileSize: maxFileSize },
-            fileFilter: (_req, file, callback) => {
-                if (!allowedMimeTypes.has(file.mimetype)) {
-                    return callback(
-                        new UnsupportedMediaTypeException(
-                            'Only jpeg, png, webp allowed',
-                        ),
-                        false,
-                    );
-                }
-                callback(null, true);
-            },
-        }),
-    )
+    @UseInterceptors(FileInterceptor('file'))
     async uploadImage(
         @UploadedFile() file: UploadedImageFile | undefined,
         @CurrentUser() user: { id: string },

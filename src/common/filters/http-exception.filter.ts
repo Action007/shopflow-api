@@ -15,6 +15,12 @@ import {
     PrismaClientKnownRequestError,
     PrismaClientValidationError,
 } from '@prisma/client/runtime/library';
+import {
+    ensureRequestId,
+    formatRequestLogLine,
+    getRequestDurationMs,
+    getRequestContext,
+} from '../utils/request-context.util';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -25,6 +31,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         const ctx = host.switchToHttp();
         const response = ctx.getResponse<Response>();
         const request = ctx.getRequest<Request>();
+        const requestId = ensureRequestId(request, response);
 
         let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
         let message: string = ErrorMessage.INTERNAL_SERVER_ERROR;
@@ -39,8 +46,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
                 typeof exceptionResponse === 'object' &&
                 'message' in exceptionResponse
             ) {
+                const validationErrors = (exceptionResponse as any).errors;
                 const msg = (exceptionResponse as any).message;
-                if (Array.isArray(msg)) {
+
+                if (validationErrors && typeof validationErrors === 'object') {
+                    message =
+                        typeof msg === 'string'
+                            ? msg
+                            : ErrorMessage.VALIDATION_FAILED;
+                    errors = validationErrors;
+                } else if (Array.isArray(msg)) {
                     message = ErrorMessage.VALIDATION_FAILED;
                     errors = this.formatValidationErrors(msg);
                 } else {
@@ -71,9 +86,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
                     message = ErrorMessage.RESOURCE_NOT_FOUND;
                     break;
                 default:
+                    // Falls back to the initialized 500 + generic message.
                     this.logger.error('Unhandled Prisma error:', exception);
+                    break;
             }
         } else if (exception instanceof PrismaClientValidationError) {
+            // This indicates invalid Prisma usage in server code, so we keep the default 500.
             this.logger.error(
                 'Prisma validation error (bug in code):',
                 exception.message,
@@ -84,6 +102,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
         this.logException({
             request,
+            requestId,
             statusCode,
             message,
             exception,
@@ -94,6 +113,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
             statusCode,
             message,
             errors,
+            requestId,
             timestamp: new Date().toISOString(),
             path: request.url,
         });
@@ -113,16 +133,30 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     private logException({
         request,
+        requestId,
         statusCode,
         message,
         exception,
     }: {
         request: Request;
+        requestId: string;
         statusCode: number;
         message: string;
         exception: unknown;
     }) {
-        const context = `${request.method} ${request.url} -> ${statusCode}`;
+        const requestContext = getRequestContext(request, requestId);
+        const durationMs = getRequestDurationMs(request);
+        const context = formatRequestLogLine({
+            statusCode,
+            method: request.method,
+            url: request.originalUrl || request.url,
+            durationMs: durationMs ?? 0,
+            userId: requestContext.userId,
+            ip: requestContext.ip || requestContext.forwardedFor || requestContext.realIp,
+            deviceType: requestContext.deviceType,
+            requestId,
+            userAgent: requestContext.userAgent,
+        });
 
         if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
             this.logger.error(
@@ -136,7 +170,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
             return;
         }
 
-        this.logger.warn(`${context} | ${message}`);
+        this.logger.warn(
+            `${context} | ${message}`,
+        );
     }
 
     private shouldSkipWarnLog(request: Request, statusCode: number): boolean {
@@ -156,10 +192,27 @@ export class HttpExceptionFilter implements ExceptionFilter {
             request.headers.referer,
         ].filter((value): value is string => Boolean(value));
 
-        return candidates.some((value) =>
-            ['localhost', '127.0.0.1', '::1'].some((localHost) =>
-                value.toLowerCase().includes(localHost),
-            ),
-        );
+        return candidates.some((value) => this.isLocalHost(value));
+    }
+
+    private isLocalHost(value: string): boolean {
+        const normalizedValue = value.toLowerCase().trim();
+        const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
+
+        if (localHosts.has(normalizedValue)) {
+            return true;
+        }
+
+        try {
+            const hostname = new URL(value).hostname.toLowerCase();
+            return localHosts.has(hostname);
+        } catch {
+            const hostWithoutPort = normalizedValue
+                .replace(/^\[/, '')
+                .replace(/\](:\d+)?$/, '')
+                .split(':')[0];
+
+            return localHosts.has(hostWithoutPort);
+        }
     }
 }

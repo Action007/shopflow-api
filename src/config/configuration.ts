@@ -11,4 +11,5 @@ export const configuration = () => ({
         refreshExpiration:
             parseInt(process.env.JWT_REFRESH_EXPIRATION ?? '', 10) || 604800,
     },
+    trustProxy: process.env.TRUST_PROXY === 'true',
 });
