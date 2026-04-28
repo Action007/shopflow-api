@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -11,7 +11,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 
 describe('E-Commerce API (e2e)', () => {
-    let app: INestApplication;
+    let app: NestExpressApplication;
     let prisma: PrismaService;
     let authService: AuthService;
 
@@ -87,7 +87,7 @@ describe('E-Commerce API (e2e)', () => {
             imports: [AppModule],
         }).compile();
 
-        app = moduleFixture.createNestApplication();
+        app = moduleFixture.createNestApplication<NestExpressApplication>();
         await configureApp(app);
         prisma = app.get(PrismaService);
         authService = app.get(AuthService);

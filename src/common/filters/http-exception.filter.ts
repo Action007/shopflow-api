@@ -18,12 +18,15 @@ import {
 import {
     ensureRequestId,
     formatRequestLogLine,
+    getMatchedRoute,
     getRequestDurationMs,
     getRequestContext,
 } from '../utils/request-context.util';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+    private static readonly WARN_SKIP_PATH_PATTERNS = [/^\/uploads\/.+/];
+
     private readonly logger = new Logger(HttpExceptionFilter.name);
     private readonly isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -150,9 +153,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
             statusCode,
             method: request.method,
             url: request.originalUrl || request.url,
+            route: getMatchedRoute(request),
             durationMs: durationMs ?? 0,
             userId: requestContext.userId,
             ip: requestContext.ip || requestContext.forwardedFor || requestContext.realIp,
+            country: requestContext.country,
             deviceType: requestContext.deviceType,
             requestId,
             userAgent: requestContext.userAgent,
@@ -176,11 +181,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     private shouldSkipWarnLog(request: Request, statusCode: number): boolean {
-        return (
+        const path = this.getPathname(request.originalUrl || request.url);
+        const isStaleUploadPath =
+            statusCode === HttpStatus.NOT_FOUND &&
+            HttpExceptionFilter.WARN_SKIP_PATH_PATTERNS.some((pattern) =>
+                pattern.test(path),
+            );
+        const isDevLocalNotFound =
             this.isDevelopment &&
             statusCode === HttpStatus.NOT_FOUND &&
-            this.isLocalRequest(request)
-        );
+            this.isLocalRequest(request);
+
+        return isStaleUploadPath || isDevLocalNotFound;
+    }
+
+    private getPathname(url: string): string {
+        return url.split('?')[0];
     }
 
     private isLocalRequest(request: Request): boolean {

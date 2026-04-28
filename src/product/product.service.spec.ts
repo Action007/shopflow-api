@@ -378,7 +378,10 @@ describe('ProductService', () => {
 
             expect(prisma.product.update).toHaveBeenCalledWith({
                 where: { id: 'prod-1' },
-                data: { deletedAt: expect.any(Date) },
+                data: {
+                    deletedAt: expect.any(Date),
+                    imageUrl: null,
+                },
             });
             expect(uploadService.removeStoredFileByUrl).toHaveBeenCalledWith(
                 'http://localhost:3000/uploads/product.webp',

@@ -165,8 +165,7 @@ export class ProductService {
         currentUserId: string,
         currentUserRole: Role,
     ): Promise<Product> {
-        const { updatedProduct, previousImageUrl } = await this.prisma.$transaction(
-            async (tx) => {
+        const updatedProduct = await this.prisma.$transaction(async (tx) => {
             const product = await tx.product.findFirst({
                 where: { id, deletedAt: null },
             });
@@ -187,48 +186,53 @@ export class ProductService {
                   })
                 : null;
 
-                const updatedProduct = await tx.product.update({
-                    where: { id },
-                    data: {
-                        ...rest,
-                        ...(price && { price: new Prisma.Decimal(price) }),
-                        ...(upload && { imageUrl: upload.url }),
-                    },
-                    include: { category: true },
-                });
+            const updatedProduct = await tx.product.update({
+                where: { id },
+                data: {
+                    ...rest,
+                    ...(price && { price: new Prisma.Decimal(price) }),
+                    ...(upload && { imageUrl: upload.url }),
+                },
+                include: { category: true },
+            });
 
-                return {
-                    updatedProduct,
-                    previousImageUrl: product.imageUrl,
-                };
-            },
-        );
+            if (
+                imageUploadId &&
+                product.imageUrl &&
+                product.imageUrl !== updatedProduct.imageUrl
+            ) {
+                await this.uploadService.removeStoredFileByUrl(
+                    product.imageUrl,
+                );
+            }
 
-        if (
-            dto.imageUploadId &&
-            previousImageUrl &&
-            previousImageUrl !== updatedProduct.imageUrl
-        ) {
-            await this.uploadService.removeStoredFileByUrl(previousImageUrl);
-        }
+            return updatedProduct;
+        });
 
         return updatedProduct;
     }
 
     async remove(id: string): Promise<void> {
-        const product = await this.prisma.product.findFirst({
-            where: { id, deletedAt: null },
+        await this.prisma.$transaction(async (tx) => {
+            const product = await tx.product.findFirst({
+                where: { id, deletedAt: null },
+            });
+
+            if (!product) {
+                throw new NotFoundException(
+                    ServiceErrorMessage.PRODUCT_NOT_FOUND,
+                );
+            }
+
+            await tx.product.update({
+                where: { id },
+                data: {
+                    deletedAt: new Date(),
+                    imageUrl: null,
+                },
+            });
+
+            await this.uploadService.removeStoredFileByUrl(product.imageUrl);
         });
-
-        if (!product) {
-            throw new NotFoundException(ServiceErrorMessage.PRODUCT_NOT_FOUND);
-        }
-
-        await this.prisma.product.update({
-            where: { id },
-            data: { deletedAt: new Date() },
-        });
-
-        await this.uploadService.removeStoredFileByUrl(product.imageUrl);
     }
 }

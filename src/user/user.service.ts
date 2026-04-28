@@ -118,8 +118,7 @@ export class UserService {
         if (currentUserId !== id && currentUserRole !== Role.ADMIN) {
             throw new ForbiddenException();
         }
-        const { updatedUser, previousImageUrl } = await this.prisma.$transaction(
-            async (tx) => {
+        const updatedUser = await this.prisma.$transaction(async (tx) => {
             const user = await tx.user.findFirst({
                 where: { id, deletedAt: null },
             });
@@ -138,30 +137,28 @@ export class UserService {
                   })
                 : null;
 
-                const updatedUser = await tx.user.update({
-                    where: { id },
-                    data: {
-                        ...(firstName !== undefined && { firstName }),
-                        ...(lastName !== undefined && { lastName }),
-                        ...(upload && { profileImageUrl: upload.url }),
-                    },
-                    select: USER_SELECT,
-                });
+            const updatedUser = await tx.user.update({
+                where: { id },
+                data: {
+                    ...(firstName !== undefined && { firstName }),
+                    ...(lastName !== undefined && { lastName }),
+                    ...(upload && { profileImageUrl: upload.url }),
+                },
+                select: USER_SELECT,
+            });
 
-                return {
-                    updatedUser,
-                    previousImageUrl: user.profileImageUrl,
-                };
-            },
-        );
+            if (
+                imageUploadId &&
+                user.profileImageUrl &&
+                user.profileImageUrl !== updatedUser.profileImageUrl
+            ) {
+                await this.uploadService.removeStoredFileByUrl(
+                    user.profileImageUrl,
+                );
+            }
 
-        if (
-            dto.imageUploadId &&
-            previousImageUrl &&
-            previousImageUrl !== updatedUser.profileImageUrl
-        ) {
-            await this.uploadService.removeStoredFileByUrl(previousImageUrl);
-        }
+            return updatedUser;
+        });
 
         return updatedUser;
     }

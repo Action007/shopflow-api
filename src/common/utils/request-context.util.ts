@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
+import geoip from 'geoip-lite';
 
 type HeaderValue = string | string[] | undefined;
 const REQUEST_START_TIME_KEY = Symbol.for('shopflow.requestStartTime');
@@ -60,6 +61,7 @@ export function getRequestContext(
         ip: request.ip,
         forwardedFor,
         realIp,
+        country: getCountry(request),
         userAgent,
         deviceType: detectDeviceType(userAgent),
         userId: request.user?.id || request.user?.sub,
@@ -67,13 +69,30 @@ export function getRequestContext(
     };
 }
 
+export function getMatchedRoute(
+    request: { route?: { path?: string | string[] } },
+    controllerPath?: string | string[],
+): string | undefined {
+    const routePath = normalizeRouteSegment(request.route?.path);
+
+    if (routePath === undefined) {
+        return undefined;
+    }
+
+    const normalizedControllerPath = normalizeRouteSegment(controllerPath);
+
+    return joinRouteSegments('api/v1', normalizedControllerPath, routePath);
+}
+
 export function formatRequestLogLine(params: {
     statusCode: number;
     method: string;
     url: string;
+    route?: string;
     durationMs: number;
     userId?: string;
     ip?: string;
+    country?: string;
     deviceType?: string;
     requestId: string;
     userAgent: string;
@@ -82,9 +101,11 @@ export function formatRequestLogLine(params: {
         statusCode,
         method,
         url,
+        route,
         durationMs,
         userId,
         ip,
+        country,
         deviceType,
         requestId,
         userAgent,
@@ -92,8 +113,10 @@ export function formatRequestLogLine(params: {
 
     const parts = [
         `${statusCode} ${method} ${url} ${durationMs}ms`,
+        route ? `route=${route}` : undefined,
         userId ? `user=${userId}` : undefined,
         ip ? `ip=${ip}` : undefined,
+        country ? `country=${country}` : undefined,
         deviceType && deviceType !== 'unknown'
             ? `device=${deviceType}`
             : undefined,
@@ -150,6 +173,76 @@ function normalizeHeaderValue(value: HeaderValue): string | undefined {
     }
 
     return undefined;
+}
+
+function normalizeRouteSegment(
+    path?: string | string[],
+): string | undefined {
+    if (Array.isArray(path)) {
+        return normalizeRouteSegment(path[0]);
+    }
+
+    if (!path) {
+        return undefined;
+    }
+
+    const trimmedPath = path.trim();
+
+    if (!trimmedPath) {
+        return undefined;
+    }
+
+    if (trimmedPath === '/') {
+        return '';
+    }
+
+    return trimmedPath.replace(/^\/+|\/+$/g, '');
+}
+
+function joinRouteSegments(...segments: Array<string | undefined>): string {
+    return `/${segments.filter(Boolean).join('/')}`;
+}
+
+function getCountry(request: RequestWithUser): string | undefined {
+    const cfIpCountry = normalizeCountryCode(
+        normalizeHeaderValue(request.headers['cf-ipcountry']),
+    );
+
+    if (cfIpCountry) {
+        return cfIpCountry;
+    }
+
+    const normalizedIp = normalizeLookupIp(request.ip);
+
+    if (!normalizedIp || isLoopbackIp(normalizedIp)) {
+        return undefined;
+    }
+
+    return normalizeCountryCode(geoip.lookup(normalizedIp)?.country);
+}
+
+function normalizeLookupIp(ip?: string): string | undefined {
+    if (!ip) {
+        return undefined;
+    }
+
+    return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+}
+
+function isLoopbackIp(ip: string): boolean {
+    return ip === '127.0.0.1' || ip === '::1';
+}
+
+function normalizeCountryCode(country?: string): string | undefined {
+    if (!country) {
+        return undefined;
+    }
+
+    const normalizedCountry = country.trim().toUpperCase();
+
+    return /^[A-Z]{2}$/.test(normalizedCountry)
+        ? normalizedCountry
+        : undefined;
 }
 
 function truncateUserAgent(userAgent: string): string {

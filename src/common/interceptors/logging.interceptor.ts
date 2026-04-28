@@ -5,17 +5,23 @@ import {
     CallHandler,
     Logger,
 } from '@nestjs/common';
+import { PATH_METADATA } from '@nestjs/common/constants';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import {
     ensureRequestId,
     formatRequestLogLine,
+    getMatchedRoute,
     getRequestContext,
     setRequestStartTime,
 } from '../utils/request-context.util';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
+    private static readonly SUCCESS_SKIP_PATH_PATTERNS = [
+        /^\/api\/v1\/health(?:\/.*)?$/,
+    ];
+
     private readonly logger = new Logger(LoggingInterceptor.name);
 
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
@@ -30,6 +36,10 @@ export class LoggingInterceptor implements NestInterceptor {
         return next.handle().pipe(
             tap({
                 next: () => {
+                    if (this.shouldSkipLog(res.statusCode, url)) {
+                        return;
+                    }
+
                     const duration = Date.now() - start;
                     const requestContext = getRequestContext(req, requestId);
                     this.logger.log(
@@ -37,9 +47,17 @@ export class LoggingInterceptor implements NestInterceptor {
                             statusCode: res.statusCode,
                             method,
                             url,
+                            route: getMatchedRoute(
+                                req,
+                                Reflect.getMetadata(PATH_METADATA, context.getClass()) as
+                                    | string
+                                    | string[]
+                                    | undefined,
+                            ),
                             durationMs: duration,
                             userId: requestContext.userId,
                             ip: requestContext.ip,
+                            country: requestContext.country,
                             deviceType: requestContext.deviceType,
                             requestId,
                             userAgent: requestContext.userAgent,
@@ -48,5 +66,20 @@ export class LoggingInterceptor implements NestInterceptor {
                 },
             }),
         );
+    }
+
+    private shouldSkipLog(statusCode: number, url: string): boolean {
+        const path = this.getPathname(url);
+
+        return (
+            statusCode < 400 &&
+            LoggingInterceptor.SUCCESS_SKIP_PATH_PATTERNS.some((pattern) =>
+                pattern.test(path),
+            )
+        );
+    }
+
+    private getPathname(url: string): string {
+        return url.split('?')[0];
     }
 }
