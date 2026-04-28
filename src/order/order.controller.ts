@@ -16,6 +16,7 @@ import {
     ApiOperation,
     ApiParam,
     ApiTags,
+    ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { OrderService } from './order.service';
 import { PlaceOrderDto } from './dto/place-order.dto';
@@ -48,6 +49,10 @@ export class OrderController {
         type: OrderDto,
     })
     @ApiErrorResponse(400, 'Cart is empty or stock is insufficient')
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     async placeOrder(
         @CurrentUser() user: { id: string },
         @Body() dto: PlaceOrderDto,
@@ -65,6 +70,10 @@ export class OrderController {
         type: OrderDto,
         paginated: true,
     })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     async getOrders(
         @CurrentUser() user: { id: string; role: Role },
         @Query() query: OrderQueryDto,
@@ -81,6 +90,10 @@ export class OrderController {
     @ApiEnvelopeResponse({
         description: 'Order details',
         type: OrderDto,
+    })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
     })
     @ApiForbiddenResponse({
         description: 'You cannot access another customer order',
@@ -108,6 +121,10 @@ export class OrderController {
         type: OrderDto,
     })
     @ApiErrorResponse(400, 'Order cannot be cancelled in its current status')
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @ApiForbiddenResponse({
         description: 'You cannot cancel another user order',
         type: ErrorResponseDto,
@@ -133,6 +150,10 @@ export class OrderController {
         type: OrderDto,
     })
     @ApiErrorResponse(400, 'Invalid status transition')
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @ApiForbiddenResponse({
         description: 'Admin role required',
         type: ErrorResponseDto,

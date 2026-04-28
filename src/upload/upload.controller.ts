@@ -21,6 +21,7 @@ import {
     ApiOperation,
     ApiParam,
     ApiTags,
+    ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
@@ -89,6 +90,10 @@ export class UploadController {
     })
     @ApiErrorResponse(400, 'No file uploaded or file is too large')
     @ApiErrorResponse(415, 'Unsupported file type')
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @UseInterceptors(
         FileInterceptor('file', {
             storage: diskStorage({
@@ -144,6 +149,10 @@ export class UploadController {
     @ApiOperation({ summary: 'Delete a pending upload by id' })
     @ApiParam({ name: 'id', format: 'uuid' })
     @ApiNoContentResponse({ description: 'Pending upload deleted' })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @ApiForbiddenResponse({
         description:
             'You can delete only your own uploads unless you are an admin',

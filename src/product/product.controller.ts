@@ -19,6 +19,7 @@ import {
     ApiOperation,
     ApiParam,
     ApiTags,
+    ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -55,6 +56,10 @@ export class ProductController {
         type: ProductDto,
     })
     @ApiErrorResponse(400, 'Invalid payload or related upload cannot be used')
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @ApiForbiddenResponse({
         description: 'Admin role required',
         type: ErrorResponseDto,
@@ -109,6 +114,10 @@ export class ProductController {
         type: ProductDto,
     })
     @ApiErrorResponse(400, 'Invalid payload or related upload cannot be used')
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @ApiForbiddenResponse({
         description: 'Admin role required',
         type: ErrorResponseDto,
@@ -133,6 +142,10 @@ export class ProductController {
     @ApiParam({ name: 'id', format: 'uuid' })
     @ApiEnvelopeResponse({
         description: 'Product deleted',
+    })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
     })
     @ApiForbiddenResponse({
         description: 'Admin role required',

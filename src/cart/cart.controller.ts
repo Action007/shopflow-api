@@ -57,6 +57,10 @@ export class CartController {
         type: CartDto,
     })
     @ApiErrorResponse(400, 'Invalid payload or insufficient stock')
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @ApiNotFoundResponse({
         description: 'Product not found',
         type: ErrorResponseDto,
@@ -78,6 +82,10 @@ export class CartController {
         type: CartDto,
     })
     @ApiErrorResponse(400, 'Invalid payload or insufficient stock')
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @ApiNotFoundResponse({
         description: 'Cart item or product not found',
         type: ErrorResponseDto,
@@ -101,6 +109,10 @@ export class CartController {
         description: 'Updated cart after removing an item',
         type: CartDto,
     })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @ApiNotFoundResponse({
         description: 'Cart item not found',
         type: ErrorResponseDto,
@@ -116,6 +128,10 @@ export class CartController {
     @ApiOperation({ summary: 'Clear the current user cart' })
     @ApiEnvelopeResponse({
         description: 'Cart cleared',
+    })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
     })
     async clearCart(@CurrentUser() user: { id: string }): Promise<void> {
         return this.cartService.clearCart(user.id);

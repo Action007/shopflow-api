@@ -85,6 +85,10 @@ export class UserController {
         type: UserDto,
         paginated: true,
     })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @ApiForbiddenResponse({
         description: 'Admin role required',
         type: ErrorResponseDto,
@@ -102,6 +106,10 @@ export class UserController {
     @ApiEnvelopeResponse({
         description: 'Updated user profile',
         type: UserDto,
+    })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
     })
     @ApiForbiddenResponse({
         description: 'You cannot update another user unless you are an admin',
@@ -125,6 +133,10 @@ export class UserController {
     @ApiParam({ name: 'id', format: 'uuid' })
     @ApiEnvelopeResponse({
         description: 'User deleted',
+    })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
     })
     @ApiForbiddenResponse({
         description: 'Admin role required',

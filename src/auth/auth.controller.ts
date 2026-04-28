@@ -81,6 +81,8 @@ export class AuthController {
     @Throttle({ default: { limit: 10, ttl: 60000 } })
     @ApiOperation({
         summary: 'Issue a new access token pair using the refresh token cookie',
+        description:
+            'This endpoint reads the refresh token from a client-managed cookie named refresh_token. The token itself is returned in the JSON response from register/login.',
     })
     @ApiCookieAuth('refresh-token')
     @ApiEnvelopeResponse({

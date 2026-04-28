@@ -54,7 +54,9 @@ export async function configureApp(
 
     const config = new DocumentBuilder()
         .setTitle('Shopflow API')
-        .setDescription('Shopflow e-commerce API documentation')
+        .setDescription(
+            'Shopflow e-commerce API documentation. Most endpoints return a success envelope in the form { success, data, timestamp }. The health endpoint returns the raw Terminus response. Refresh tokens are returned in the auth response body, and /auth/refresh expects the client to send that token back in a cookie named refresh_token.',
+        )
         .setVersion('1.0.0')
         .addBearerAuth(
             {
@@ -72,7 +74,7 @@ export async function configureApp(
                 type: 'apiKey',
                 in: 'cookie',
                 description:
-                    'Refresh token cookie set by the client after login',
+                    'Client-managed refresh token cookie. The backend reads refresh_token on /auth/refresh, but does not set the cookie automatically.',
             },
             'refresh-token',
         )

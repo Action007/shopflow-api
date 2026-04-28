@@ -13,6 +13,7 @@ import {
     ApiOperation,
     ApiParam,
     ApiTags,
+    ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { WishlistService } from './wishlist.service';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
@@ -35,6 +36,10 @@ export class WishlistController {
         description: 'Current wishlist',
         type: WishlistDto,
     })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     async getWishlist(@CurrentUser() user: { id: string }) {
         return this.wishlistService.getWishlist(user.id);
     }
@@ -45,6 +50,10 @@ export class WishlistController {
         status: 201,
         description: 'Updated wishlist after adding an item',
         type: WishlistDto,
+    })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
     })
     @ApiNotFoundResponse({
         description: 'Product not found',
@@ -65,6 +74,10 @@ export class WishlistController {
     @ApiEnvelopeResponse({
         description: 'Updated wishlist after removing an item',
         type: WishlistDto,
+    })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
     })
     @ApiNotFoundResponse({
         description: 'Wishlist item not found',

@@ -60,10 +60,15 @@ export class PaginationMetaDto {
 }
 
 export class AuthTokensDto {
-    @ApiProperty()
+    @ApiProperty({
+        description: 'JWT access token for Authorization: Bearer <token>',
+    })
     accessToken: string;
 
-    @ApiProperty()
+    @ApiProperty({
+        description:
+            'Refresh token returned in the response body. The client must send it back as a cookie named refresh_token when calling POST /auth/refresh.',
+    })
     refreshToken: string;
 }
 

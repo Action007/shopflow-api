@@ -1,5 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+    ApiOkResponse,
+    ApiOperation,
+    ApiServiceUnavailableResponse,
+    ApiTags,
+} from '@nestjs/swagger';
 import {
     HealthCheck,
     HealthCheckService,
@@ -50,6 +55,41 @@ export class HealthController {
                             type: 'object',
                             properties: {
                                 status: { type: 'string', example: 'up' },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    })
+    @ApiServiceUnavailableResponse({
+        description: 'Application health check failed',
+        schema: {
+            type: 'object',
+            properties: {
+                status: { type: 'string', example: 'error' },
+                info: {
+                    type: 'object',
+                    example: {},
+                },
+                error: {
+                    type: 'object',
+                    properties: {
+                        database: {
+                            type: 'object',
+                            properties: {
+                                status: { type: 'string', example: 'down' },
+                            },
+                        },
+                    },
+                },
+                details: {
+                    type: 'object',
+                    properties: {
+                        database: {
+                            type: 'object',
+                            properties: {
+                                status: { type: 'string', example: 'down' },
                             },
                         },
                     },

@@ -18,6 +18,7 @@ import {
     ApiOperation,
     ApiParam,
     ApiTags,
+    ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -52,6 +53,10 @@ export class CategoryController {
         type: CategoryDto,
     })
     @ApiErrorResponse(400, 'Invalid category hierarchy or payload')
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @ApiForbiddenResponse({
         description: 'Admin role required',
         type: ErrorResponseDto,
@@ -103,6 +108,10 @@ export class CategoryController {
         type: CategoryDto,
     })
     @ApiErrorResponse(400, 'Invalid category hierarchy or payload')
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
+    })
     @ApiForbiddenResponse({
         description: 'Admin role required',
         type: ErrorResponseDto,
@@ -126,6 +135,10 @@ export class CategoryController {
     @ApiParam({ name: 'id', format: 'uuid' })
     @ApiEnvelopeResponse({
         description: 'Category deleted',
+    })
+    @ApiUnauthorizedResponse({
+        description: 'Missing or invalid access token',
+        type: ErrorResponseDto,
     })
     @ApiForbiddenResponse({
         description: 'Admin role required',
