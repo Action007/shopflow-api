@@ -1,4 +1,4 @@
-import { plainToInstance } from 'class-transformer';
+import { Transform, plainToInstance } from 'class-transformer';
 import {
     IsBoolean,
     IsEnum,
@@ -14,6 +14,10 @@ enum Environment {
     Development = 'development',
     Production = 'production',
     Test = 'test',
+}
+
+function toBoolean(value: unknown): boolean {
+    return value === true || value === 'true';
 }
 
 class EnvironmentVariables {
@@ -48,8 +52,13 @@ class EnvironmentVariables {
     @IsNotEmpty()
     CORS_ORIGINS: string;
 
+    @Transform(({ value }) => toBoolean(value))
     @IsBoolean()
     TRUST_PROXY: boolean = false;
+
+    @Transform(({ value }) => toBoolean(value))
+    @IsBoolean()
+    CF_IPCOUNTRY_TRUSTED: boolean = false;
 
     @IsString()
     @IsNotEmpty()

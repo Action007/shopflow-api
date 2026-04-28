@@ -1,25 +1,53 @@
-import geoip from 'geoip-lite';
-import {
-    formatRequestLogLine,
-    getRequestContext,
-} from './request-context.util';
-
-jest.mock('geoip-lite', () => ({
-    __esModule: true,
-    default: {
-        lookup: jest.fn(),
-    },
-}));
-
-const geoipLookup = geoip.lookup as jest.Mock;
-
 describe('request-context util', () => {
+    const originalCfIpCountryTrusted = process.env.CF_IPCOUNTRY_TRUSTED;
+
     afterEach(() => {
+        jest.resetModules();
         jest.clearAllMocks();
+
+        if (originalCfIpCountryTrusted === undefined) {
+            delete process.env.CF_IPCOUNTRY_TRUSTED;
+            return;
+        }
+
+        process.env.CF_IPCOUNTRY_TRUSTED = originalCfIpCountryTrusted;
     });
 
+    async function loadRequestContextUtil(options?: {
+        cfIpCountryTrusted?: string;
+        geoipCountry?: string;
+    }) {
+        if (options?.cfIpCountryTrusted === undefined) {
+            delete process.env.CF_IPCOUNTRY_TRUSTED;
+        } else {
+            process.env.CF_IPCOUNTRY_TRUSTED = options.cfIpCountryTrusted;
+        }
+
+        const lookup = jest.fn();
+
+        if (options?.geoipCountry) {
+            lookup.mockReturnValue({ country: options.geoipCountry });
+        }
+
+        jest.doMock('geoip-lite', () => ({
+            __esModule: true,
+            default: {
+                lookup,
+            },
+        }));
+
+        const requestContextUtil = await import('./request-context.util');
+
+        return {
+            ...requestContextUtil,
+            geoipLookup: lookup,
+        };
+    }
+
     describe('formatRequestLogLine', () => {
-        it('should format a compact log line and truncate the request id and user agent', () => {
+        it('should format a compact log line and truncate the request id and user agent', async () => {
+            const { formatRequestLogLine } = await loadRequestContextUtil();
+
             const result = formatRequestLogLine({
                 statusCode: 200,
                 method: 'GET',
@@ -40,7 +68,9 @@ describe('request-context util', () => {
             );
         });
 
-        it('should omit empty or unknown fields', () => {
+        it('should omit empty or unknown fields', async () => {
+            const { formatRequestLogLine } = await loadRequestContextUtil();
+
             const result = formatRequestLogLine({
                 statusCode: 404,
                 method: 'GET',
@@ -53,7 +83,9 @@ describe('request-context util', () => {
             expect(result).toBe('404 GET /api/v1/missing 9ms rid=12345678');
         });
 
-        it('should omit the route field when no matched route is available', () => {
+        it('should omit the route field when no matched route is available', async () => {
+            const { formatRequestLogLine } = await loadRequestContextUtil();
+
             const result = formatRequestLogLine({
                 statusCode: 404,
                 method: 'GET',
@@ -68,8 +100,11 @@ describe('request-context util', () => {
     });
 
     describe('getRequestContext', () => {
-        it('should include country from geoip lookup for non-loopback requests', () => {
-            geoipLookup.mockReturnValue({ country: 'DE' });
+        it('should include country from geoip lookup for non-loopback requests', async () => {
+            const { getRequestContext, geoipLookup } =
+                await loadRequestContextUtil({
+                    geoipCountry: 'DE',
+                });
 
             const context = getRequestContext(
                 {
@@ -88,7 +123,12 @@ describe('request-context util', () => {
             expect(geoipLookup).toHaveBeenCalledWith('203.0.113.42');
         });
 
-        it('should omit country for loopback requests', () => {
+        it('should omit country for loopback requests even when cf-ipcountry is present and trusted', async () => {
+            const { getRequestContext, geoipLookup } =
+                await loadRequestContextUtil({
+                    cfIpCountryTrusted: 'true',
+                });
+
             const context = getRequestContext(
                 {
                     method: 'GET',
@@ -97,6 +137,7 @@ describe('request-context util', () => {
                     ip: '127.0.0.1',
                     headers: {
                         'user-agent': 'curl/8.0.0',
+                        'cf-ipcountry': 'US',
                     },
                 } as any,
                 'request-id',
@@ -106,8 +147,12 @@ describe('request-context util', () => {
             expect(geoipLookup).not.toHaveBeenCalled();
         });
 
-        it('should prefer cf-ipcountry over geoip lookup', () => {
-            geoipLookup.mockReturnValue({ country: 'DE' });
+        it('should prefer cf-ipcountry over geoip lookup when trusted', async () => {
+            const { getRequestContext, geoipLookup } =
+                await loadRequestContextUtil({
+                    cfIpCountryTrusted: 'true',
+                    geoipCountry: 'DE',
+                });
 
             const context = getRequestContext(
                 {
@@ -125,6 +170,31 @@ describe('request-context util', () => {
 
             expect(context.country).toBe('US');
             expect(geoipLookup).not.toHaveBeenCalled();
+        });
+
+        it('should ignore cf-ipcountry and fall back to geoip lookup when not trusted', async () => {
+            const { getRequestContext, geoipLookup } =
+                await loadRequestContextUtil({
+                    cfIpCountryTrusted: 'false',
+                    geoipCountry: 'DE',
+                });
+
+            const context = getRequestContext(
+                {
+                    method: 'GET',
+                    url: '/api/v1/products/123',
+                    originalUrl: '/api/v1/products/123',
+                    ip: '203.0.113.42',
+                    headers: {
+                        'user-agent': 'Mozilla/5.0',
+                        'cf-ipcountry': 'US',
+                    },
+                } as any,
+                'request-id',
+            );
+
+            expect(context.country).toBe('DE');
+            expect(geoipLookup).toHaveBeenCalledWith('203.0.113.42');
         });
     });
 });

@@ -6,6 +6,7 @@ type HeaderValue = string | string[] | undefined;
 const REQUEST_START_TIME_KEY = Symbol.for('shopflow.requestStartTime');
 const REQUEST_ID_REGEX = /^[A-Za-z0-9._:-]{8,128}$/;
 const USER_AGENT_MAX_LENGTH = 40;
+const TRUST_CF_IPCOUNTRY = process.env.CF_IPCOUNTRY_TRUSTED === 'true';
 
 type RequestWithUser = Request & {
     [REQUEST_START_TIME_KEY]?: number;
@@ -215,16 +216,18 @@ function getCountry(request: RequestWithUser): string | undefined {
         forwardedFor,
     });
 
-    const cfIpCountry = normalizeCountryCode(
-        normalizeHeaderValue(request.headers['cf-ipcountry']),
-    );
+    if (!normalizedIp || isLoopbackIp(normalizedIp)) {
+        return undefined;
+    }
+
+    const cfIpCountry = TRUST_CF_IPCOUNTRY
+        ? normalizeCountryCode(
+              normalizeHeaderValue(request.headers['cf-ipcountry']),
+          )
+        : undefined;
 
     if (cfIpCountry) {
         return cfIpCountry;
-    }
-
-    if (!normalizedIp || isLoopbackIp(normalizedIp)) {
-        return undefined;
     }
 
     return normalizeCountryCode(geoip.lookup(normalizedIp)?.country);
