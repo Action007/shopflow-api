@@ -20,8 +20,13 @@ export async function configureApp(
     const uploadDir = getUploadDirPath(
         configService.getOrThrow<string>('UPLOAD_DIR'),
     );
+    const trustProxy = configService.get<boolean>('TRUST_PROXY') ?? false;
     app.setGlobalPrefix('api/v1');
-    app.set('trust proxy', configService.get<boolean>('TRUST_PROXY') ?? false);
+    console.log('[app] trust proxy debug', {
+        value: trustProxy,
+        type: typeof trustProxy,
+    });
+    app.set('trust proxy', trustProxy);
 
     app.use(helmet());
     app.use(compression());

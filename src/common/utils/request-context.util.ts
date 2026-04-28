@@ -204,6 +204,17 @@ function joinRouteSegments(...segments: Array<string | undefined>): string {
 }
 
 function getCountry(request: RequestWithUser): string | undefined {
+    const normalizedIp = normalizeLookupIp(request.ip);
+    const forwardedFor = normalizeHeaderValue(
+        request.headers['x-forwarded-for'],
+    );
+
+    console.log('[request-context] getCountry debug', {
+        requestIp: request.ip,
+        normalizedIp,
+        forwardedFor,
+    });
+
     const cfIpCountry = normalizeCountryCode(
         normalizeHeaderValue(request.headers['cf-ipcountry']),
     );
@@ -211,8 +222,6 @@ function getCountry(request: RequestWithUser): string | undefined {
     if (cfIpCountry) {
         return cfIpCountry;
     }
-
-    const normalizedIp = normalizeLookupIp(request.ip);
 
     if (!normalizedIp || isLoopbackIp(normalizedIp)) {
         return undefined;
